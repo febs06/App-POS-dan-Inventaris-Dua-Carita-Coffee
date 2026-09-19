@@ -726,10 +726,17 @@ export default function StockManagementPage() {
                   className="text-xs font-bold bg-white text-slate-900 border border-slate-300 rounded-xl px-2.5 py-1.5 focus:ring-2 focus:ring-amber-500"
                 >
                   <option value="all">Semua Kategori</option>
+                  <option value="Kopi">Kopi</option>
+                  <option value="Dairy/Susu">Dairy/Susu</option>
+                  <option value="Creamer">Creamer</option>
+                  <option value="Sweatener/Gula">Sweatener/Gula</option>
+                  <option value="Syrup/Flavor">Syrup/Flavor</option>
+                  <option value="Powder">Powder</option>
+                  <option value="Air">Air</option>
                   <option value="Bahan Minuman">Bahan Minuman</option>
-                  <option value="Sirup & Flavour">Sirup & Flavour</option>
                   <option value="Kemasan & Packaging">Kemasan & Packaging</option>
                   <option value="Topping & Tambahan">Topping & Tambahan</option>
+                  <option value="Lainnya">Lainnya</option>
                 </select>
               </div>
 
@@ -983,8 +990,14 @@ export default function StockManagementPage() {
                     onChange={(e) => setRawCategory(e.target.value)}
                     className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-semibold text-slate-900"
                   >
+                    <option value="Kopi">Kopi</option>
+                    <option value="Dairy/Susu">Dairy/Susu</option>
+                    <option value="Creamer">Creamer</option>
+                    <option value="Sweatener/Gula">Sweatener/Gula</option>
+                    <option value="Syrup/Flavor">Syrup/Flavor</option>
+                    <option value="Powder">Powder</option>
+                    <option value="Air">Air</option>
                     <option value="Bahan Minuman">Bahan Minuman</option>
-                    <option value="Sirup & Flavour">Sirup & Flavour</option>
                     <option value="Kemasan & Packaging">Kemasan & Packaging</option>
                     <option value="Topping & Tambahan">Topping & Tambahan</option>
                     <option value="Lainnya">Lainnya</option>
