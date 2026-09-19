@@ -76,6 +76,7 @@ export default function StockManagementPage() {
   const [loadingRaw, setLoadingRaw] = useState(false);
   const [rawCategoryFilter, setRawCategoryFilter] = useState("all");
   const [rawStatusFilter, setRawStatusFilter] = useState("all");
+  const [rawSearchQuery, setRawSearchQuery] = useState("");
 
   // Modal Tambah / Edit Bahan Baku
   const [isRawModalOpen, setIsRawModalOpen] = useState(false);
@@ -109,7 +110,7 @@ export default function StockManagementPage() {
       loadRawMaterials();
       loadRawLogs();
     }
-  }, [activeTab, rawCategoryFilter, rawStatusFilter]);
+  }, [activeTab, rawCategoryFilter, rawStatusFilter, rawSearchQuery]);
 
   const loadStock = async () => {
     setLoading(true);
@@ -146,11 +147,12 @@ export default function StockManagementPage() {
   const loadRawMaterials = async () => {
     setLoadingRaw(true);
     try {
-      let url = `/api/raw-materials?`;
-      if (rawCategoryFilter !== "all") url += `&category=${rawCategoryFilter}`;
-      if (rawStatusFilter !== "all") url += `&status=${rawStatusFilter}`;
+      const params = new URLSearchParams();
+      if (rawCategoryFilter !== "all") params.append("category", rawCategoryFilter);
+      if (rawStatusFilter !== "all") params.append("status", rawStatusFilter);
+      if (rawSearchQuery.trim()) params.append("search", rawSearchQuery.trim());
 
-      const res = await fetch(url);
+      const res = await fetch(`/api/raw-materials?${params.toString()}`);
       const data = await res.json();
       if (data && Array.isArray(data.materials)) {
         setRawMaterialsData(data);
@@ -718,6 +720,18 @@ export default function StockManagementPage() {
           {/* Filter Bar Bahan Baku */}
           <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2.5">
+              {/* Search Bahan */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Cari Bahan / Kemasan</label>
+                <input
+                  type="text"
+                  placeholder="Cari botol, cup, kopi, dll..."
+                  value={rawSearchQuery}
+                  onChange={(e) => setRawSearchQuery(e.target.value)}
+                  className="text-xs font-medium bg-white text-slate-900 border border-slate-300 rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-amber-500 w-48 sm:w-56"
+                />
+              </div>
+
               <div>
                 <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Kategori Bahan</label>
                 <select
@@ -726,6 +740,8 @@ export default function StockManagementPage() {
                   className="text-xs font-bold bg-white text-slate-900 border border-slate-300 rounded-xl px-2.5 py-1.5 focus:ring-2 focus:ring-amber-500"
                 >
                   <option value="all">Semua Kategori</option>
+                  <option value="Kemasan & Packaging">Kemasan & Packaging</option>
+                  <option value="Topping & Tambahan">Topping & Tambahan</option>
                   <option value="Kopi">Kopi</option>
                   <option value="Dairy/Susu">Dairy/Susu</option>
                   <option value="Creamer">Creamer</option>
@@ -734,8 +750,6 @@ export default function StockManagementPage() {
                   <option value="Powder">Powder</option>
                   <option value="Air">Air</option>
                   <option value="Bahan Minuman">Bahan Minuman</option>
-                  <option value="Kemasan & Packaging">Kemasan & Packaging</option>
-                  <option value="Topping & Tambahan">Topping & Tambahan</option>
                   <option value="Lainnya">Lainnya</option>
                 </select>
               </div>

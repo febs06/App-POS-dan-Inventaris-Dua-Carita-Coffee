@@ -1,22 +1,63 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const category = searchParams.get("category");
+    const rawCategory = searchParams.get("category");
     const status = searchParams.get("status"); // 'critical', 'safe'
+    const search = searchParams.get("search");
 
     const where: any = {};
-    if (category && category !== "all") {
-      where.category = category;
+
+    if (rawCategory && rawCategory !== "all") {
+      const decoded = decodeURIComponent(rawCategory).trim();
+
+      // Normalisasi kategori multi-kata / variasi penulisan
+      if (
+        decoded === "Kemasan & Packaging" ||
+        decoded.startsWith("Kemasan") ||
+        decoded.startsWith("Packaging")
+      ) {
+        where.category = { in: ["Kemasan & Packaging", "Kemasan", "Packaging"] };
+      } else if (
+        decoded === "Topping & Tambahan" ||
+        decoded.startsWith("Topping") ||
+        decoded.startsWith("Tambahan")
+      ) {
+        where.category = { in: ["Topping & Tambahan", "Topping", "Tambahan"] };
+      } else if (
+        decoded === "Syrup/Flavor" ||
+        decoded === "Sirup & Flavour" ||
+        decoded.toLowerCase().includes("syrup") ||
+        decoded.toLowerCase().includes("sirup")
+      ) {
+        where.category = { in: ["Syrup/Flavor", "Sirup & Flavour"] };
+      } else if (
+        decoded === "Sweatener/Gula" ||
+        decoded.toLowerCase().includes("gula") ||
+        decoded.toLowerCase().includes("sweatener")
+      ) {
+        where.category = { in: ["Sweatener/Gula", "Gula"] };
+      } else if (decoded === "Dairy/Susu" || decoded.toLowerCase().includes("susu")) {
+        where.category = { in: ["Dairy/Susu", "Susu"] };
+      } else {
+        where.category = { equals: decoded, mode: "insensitive" };
+      }
+    }
+
+    if (search && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { name: { contains: q, mode: "insensitive" } },
+        { supplier: { contains: q, mode: "insensitive" } },
+        { category: { contains: q, mode: "insensitive" } },
+      ];
     }
 
     let materials = await prisma.rawMaterial.findMany({
       where,
-      orderBy: { name: "asc" },
+      orderBy: [{ category: "asc" }, { name: "asc" }],
       include: {
         logs: {
           orderBy: { createdAt: "desc" },
@@ -65,13 +106,13 @@ export async function POST(req: Request) {
 
     const material = await prisma.rawMaterial.create({
       data: {
-        name,
-        category: category || "Bahan Minuman",
+        name: name.trim(),
+        category: category?.trim() || "Bahan Minuman",
         stock: initialStock,
-        unit: unit || "gram",
+        unit: unit.trim(),
         minStock: parseFloat(minStock) || 10,
         costPerUnit: parseFloat(costPerUnit) || 0,
-        supplier: supplier || "",
+        supplier: supplier?.trim() || "",
       },
     });
 
@@ -105,12 +146,12 @@ export async function PUT(req: Request) {
     const updated = await prisma.rawMaterial.update({
       where: { id },
       data: {
-        name: name !== undefined ? name : undefined,
-        category: category !== undefined ? category : undefined,
-        unit: unit !== undefined ? unit : undefined,
+        name: name !== undefined ? name.trim() : undefined,
+        category: category !== undefined ? category.trim() : undefined,
+        unit: unit !== undefined ? unit.trim() : undefined,
         minStock: minStock !== undefined ? parseFloat(minStock) : undefined,
         costPerUnit: costPerUnit !== undefined ? parseFloat(costPerUnit) : undefined,
-        supplier: supplier !== undefined ? supplier : undefined,
+        supplier: supplier !== undefined ? supplier.trim() : undefined,
       },
     });
 
