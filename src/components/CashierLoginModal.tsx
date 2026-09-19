@@ -97,7 +97,8 @@ export default function CashierLoginModal({ isOpen, onClose, onSuccess }: Cashie
         return;
       }
 
-      // Save to localStorage
+      // Save to sessionStorage and localStorage
+      sessionStorage.setItem("active_cashier", JSON.stringify(data.employee));
       localStorage.setItem("active_cashier", JSON.stringify(data.employee));
       window.dispatchEvent(new Event("cashier-updated"));
 

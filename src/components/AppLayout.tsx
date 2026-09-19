@@ -22,8 +22,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     const checkAuth = () => {
       try {
-        const saved = localStorage.getItem("active_cashier");
-        if (!saved) {
+        // Gunakan sessionStorage agar setiap sesi masuk/buka browser baru WAJIB login ulang (termasuk owner)
+        const sessionActive = sessionStorage.getItem("active_cashier");
+        if (!sessionActive) {
           setIsAuthenticated(false);
           router.replace("/login");
         } else {

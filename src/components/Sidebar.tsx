@@ -77,7 +77,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const loadCashier = () => {
     try {
-      const saved = localStorage.getItem("active_cashier");
+      const saved =
+        sessionStorage.getItem("active_cashier") ||
+        localStorage.getItem("active_cashier");
       if (saved) {
         setActiveCashier(JSON.parse(saved));
       } else {
@@ -90,6 +92,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const handleLogout = () => {
     try {
+      sessionStorage.removeItem("active_cashier");
       localStorage.removeItem("active_cashier");
       window.dispatchEvent(new Event("cashier-updated"));
       router.push("/login");

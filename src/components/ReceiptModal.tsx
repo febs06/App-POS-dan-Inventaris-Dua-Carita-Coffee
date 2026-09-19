@@ -73,20 +73,26 @@ export default function ReceiptModal({ order, onClose }: ReceiptModalProps) {
     }
   };
 
-  // Generate WhatsApp message
-  const handleShareWhatsApp = () => {
-    const cleanPhone = order.customer?.phoneNumber?.replace(/[^0-9]/g, "");
+  // Generate WhatsApp message & reliable direct link
+  let cleanPhone = (order.customer?.phoneNumber || "").replace(/[^0-9]/g, "");
+  if (cleanPhone) {
+    if (cleanPhone.startsWith("0")) {
+      cleanPhone = "62" + cleanPhone.slice(1);
+    } else if (cleanPhone.startsWith("8")) {
+      cleanPhone = "62" + cleanPhone;
+    }
+  }
 
-    const itemsText = order.items
-      ?.map(
-        (it: any) =>
-          `• ${it.product?.name || "Item"} x${it.qty} = ${formatRupiah(it.price * it.qty)}${
-            it.notes ? ` (${it.notes})` : ""
-          }`
-      )
-      .join("\n");
+  const itemsText = order.items
+    ?.map(
+      (it: any) =>
+        `• ${it.product?.name || "Item"} x${it.qty} = ${formatRupiah(it.price * it.qty)}${
+          it.notes ? ` (${it.notes})` : ""
+        }`
+    )
+    .join("\n");
 
-    const message = `*INVOICE PESANAN - ${storeSetting.storeName || "Dua Carita Coffee"}* 🧾
+  const message = `*INVOICE PESANAN - ${storeSetting.storeName || "Dua Carita Coffee"}* 🧾
 ----------------------------------------
 No. Order : ${order.orderNumber}
 Waktu     : ${formatDateTime(order.createdAt)}
@@ -95,10 +101,10 @@ Tipe      : ${isPO ? "Pre-Order (PO)" : "Direct POS"}
 Pelanggan : ${customerDisplayName}
 Status    : ${getStatusLabel(order.status)}
 ${order.event ? `Event     : ${order.event.name}\n` : ""}${
-      order.customer?.phoneNumber ? `No. WA    : ${order.customer.phoneNumber}\n` : ""
-    }${order.pickupDate ? `Tgl Ambil : ${formatDate(order.pickupDate)}\n` : ""}${
-      order.pickupMethod ? `Metode    : ${order.pickupMethod}\n` : ""
-    }
+    cleanPhone ? `No. WA    : ${cleanPhone}\n` : ""
+  }${order.pickupDate ? `Tgl Ambil : ${formatDate(order.pickupDate)}\n` : ""}${
+    order.pickupMethod ? `Metode    : ${order.pickupMethod}\n` : ""
+  }
 *Rincian Pesanan:*
 ${itemsText}
 ----------------------------------------
@@ -118,15 +124,47 @@ ${
 ----------------------------------------
 ${storeSetting.receiptFooter || "Terima kasih telah memesan di booth kami! 🙏✨"}`;
 
-    const url = cleanPhone
-      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
-      : `https://wa.me/?text=${encodeURIComponent(message)}`;
-
-    window.open(url, "_blank");
-  };
+  // Gunakan API resmi api.whatsapp.com/send agar tidak error jika nomor HP kosong
+  const whatsappUrl = cleanPhone
+    ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`
+    : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs print:static print:p-0 print:bg-transparent print:block">
+      {/* Dynamic 80mm Print CSS Rule */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+          @media print {
+            @page {
+              size: 80mm auto !important;
+              margin: 0mm !important;
+            }
+            body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              width: 80mm !important;
+              max-width: 80mm !important;
+            }
+            body.modal-receipt-open *:not(#printable-receipt, #printable-receipt *) {
+              display: none !important;
+            }
+            #printable-receipt {
+              display: block !important;
+              position: static !important;
+              width: 78mm !important;
+              max-width: 78mm !important;
+              margin: 0 auto !important;
+              padding: 4mm 2mm !important;
+              color: #000000 !important;
+              background: #ffffff !important;
+            }
+          }
+        `,
+        }}
+      />
+
       <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] print:max-h-none print:shadow-none print:border-none print:w-auto print:max-w-none print:block print:bg-white">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 no-print">
@@ -138,7 +176,7 @@ ${storeSetting.receiptFooter || "Terima kasih telah memesan di booth kami! 🙏�
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700"
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700 cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -149,7 +187,6 @@ ${storeSetting.receiptFooter || "Terima kasih telah memesan di booth kami! 🙏�
           className="p-6 overflow-y-auto font-mono text-xs text-slate-900 bg-white"
           id="printable-receipt"
           ref={receiptRef}
-          style={{ width: "100%", maxWidth: "80mm", margin: "0 auto" }}
         >
           {/* Header Brand */}
           <div className="text-center pb-3 border-b border-dashed border-slate-400">
@@ -206,7 +243,7 @@ ${storeSetting.receiptFooter || "Terima kasih telah memesan di booth kami! 🙏�
               <span className="text-slate-500">Pelanggan:</span>
               <span className="font-bold text-slate-900">
                 {customerDisplayName}
-                {order.customer?.phoneNumber ? ` (${order.customer.phoneNumber})` : ""}
+                {cleanPhone ? ` (${cleanPhone})` : ""}
               </span>
             </div>
             <div className="flex justify-between">
@@ -321,14 +358,15 @@ ${storeSetting.receiptFooter || "Terima kasih telah memesan di booth kami! 🙏�
             Cetak Struk (80mm)
           </button>
 
-          <button
-            type="button"
-            onClick={handleShareWhatsApp}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-700 transition shadow-xs cursor-pointer"
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-700 transition shadow-xs cursor-pointer text-center"
           >
             <MessageCircle className="h-4 w-4" />
             Kirim WhatsApp
-          </button>
+          </a>
         </div>
       </div>
     </div>

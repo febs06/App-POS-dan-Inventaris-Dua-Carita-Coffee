@@ -187,7 +187,8 @@ export default function LoginPage() {
         return;
       }
 
-      // Save cashier info to localStorage
+      // Save cashier info to sessionStorage and localStorage
+      sessionStorage.setItem("active_cashier", JSON.stringify(data.employee));
       localStorage.setItem("active_cashier", JSON.stringify(data.employee));
       window.dispatchEvent(new Event("cashier-updated"));
 
