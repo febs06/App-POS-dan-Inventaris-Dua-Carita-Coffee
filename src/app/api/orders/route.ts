@@ -242,120 +242,149 @@ export async function POST(req: NextRequest) {
 
     const orderNumber = generateOrderNumber(orderSource === "PO" ? "PO" : "DIR");
 
-    // Eksekusi atomik database transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Verifikasi ketersediaan bahan baku di dalam transaksi
-      for (const item of validatedItems) {
-        for (const ing of item.product.ingredients) {
-          const requiredAmount = ing.amount * item.qty;
-          const currentMat = await tx.rawMaterial.findUnique({
-            where: { id: ing.rawMaterialId },
-          });
+    // Hitung total kebutuhan bahan baku per material (hindari update berulang & timeout)
+    const requiredMaterialsMap = new Map<
+      string,
+      { materialId: string; name: string; unit: string; totalAmount: number }
+    >();
 
-          if (!currentMat || currentMat.stock < requiredAmount) {
-            throw new Error(
-              `Pesanan ditolak: Bahan baku "${currentMat?.name || "Bahan"}" tidak cukup untuk membuat "${item.product.name}". (Dibutuhkan: ${requiredAmount} ${currentMat?.unit || ""}, Sisa: ${currentMat?.stock || 0} ${currentMat?.unit || ""})`
-            );
-          }
+    for (const item of validatedItems) {
+      for (const ing of item.product.ingredients) {
+        const requiredAmount = ing.amount * item.qty;
+        const existing = requiredMaterialsMap.get(ing.rawMaterialId);
+        if (existing) {
+          existing.totalAmount += requiredAmount;
+        } else {
+          requiredMaterialsMap.set(ing.rawMaterialId, {
+            materialId: ing.rawMaterialId,
+            name: ing.rawMaterial?.name || "Bahan",
+            unit: ing.rawMaterial?.unit || "",
+            totalAmount: requiredAmount,
+          });
         }
       }
+    }
 
-      // 2. Buat Order
-      const newOrder = await tx.order.create({
-        data: {
-          orderNumber,
-          orderSource,
-          eventId: eventId || null,
-          customerId: customerId || null,
-          customerName: customerName?.trim() || null,
-          status: initialStatus,
-          pickupMethod: pickupMethod || (orderSource === "DIRECT" ? "ambil di event" : null),
-          pickupDate: pickupDate ? new Date(pickupDate) : null,
-          subtotal: serverSubtotal,
-          voucherId: appliedVoucherId,
-          discountAmount: validatedDiscount,
-          tax: finalTax,
-          totalAmount,
-          cashierName: finalCashierName,
-        },
-      });
+    // Eksekusi atomik database transaction dengan timeout 30 detik untuk lingkungan serverless (Vercel)
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // 1. Verifikasi ketersediaan bahan baku secara batch
+        const materialIds = Array.from(requiredMaterialsMap.keys());
+        if (materialIds.length > 0) {
+          const currentMaterials = await tx.rawMaterial.findMany({
+            where: { id: { in: materialIds } },
+          });
 
-      // 3. Buat OrderItems, Potong Stok Produk, dan Potong Bahan Baku
-      for (const item of validatedItems) {
-        await tx.orderItem.create({
+          for (const mat of currentMaterials) {
+            const req = requiredMaterialsMap.get(mat.id);
+            if (req && mat.stock < req.totalAmount) {
+              throw new Error(
+                `Pesanan ditolak: Bahan baku "${mat.name}" tidak cukup. (Dibutuhkan: ${req.totalAmount} ${mat.unit}, Sisa: ${mat.stock} ${mat.unit})`
+              );
+            }
+          }
+        }
+
+        // 2. Buat Order sekaligus OrderItems & Payment dalam 1 query bersarang
+        const newOrder = await tx.order.create({
           data: {
-            orderId: newOrder.id,
-            productId: item.productId,
-            qty: item.qty,
-            price: item.price,
-            notes: item.notes,
+            orderNumber,
+            orderSource,
+            eventId: eventId || null,
+            customerId: customerId || null,
+            customerName: customerName?.trim() || null,
+            status: initialStatus,
+            pickupMethod: pickupMethod || (orderSource === "DIRECT" ? "ambil di event" : null),
+            pickupDate: pickupDate ? new Date(pickupDate) : null,
+            subtotal: serverSubtotal,
+            voucherId: appliedVoucherId,
+            discountAmount: validatedDiscount,
+            tax: finalTax,
+            totalAmount,
+            cashierName: finalCashierName,
+            items: {
+              create: validatedItems.map((item) => ({
+                productId: item.productId,
+                qty: item.qty,
+                price: item.price,
+                notes: item.notes,
+              })),
+            },
+            payments:
+              payment && Number(payment.amount) > 0
+                ? {
+                    create: [
+                      {
+                        method: payment.method || "cash",
+                        amount: Number(payment.amount),
+                        isDownPayment: Boolean(payment.isDownPayment),
+                        paidAt: new Date(),
+                      },
+                    ],
+                  }
+                : undefined,
           },
         });
 
-        // Kurangi stok produk jadi
-        await tx.product.update({
-          where: { id: item.productId },
-          data: {
-            stock: { decrement: item.qty },
-          },
-        });
+        // 3. Potong stok produk jadi
+        for (const item of validatedItems) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: {
+              stock: { decrement: item.qty },
+            },
+          });
+        }
 
-        // Catat di StockLog produk
-        await tx.stockLog.create({
-          data: {
+        // 4. Catat StockLog produk secara batch
+        await tx.stockLog.createMany({
+          data: validatedItems.map((item) => ({
             productId: item.productId,
             changeQty: -item.qty,
             reason: "terjual",
             eventId: eventId || null,
-          },
+          })),
         });
 
-        // Kurangi stok bahan baku sesuai resep
-        for (const ing of item.product.ingredients) {
-          const usedAmount = ing.amount * item.qty;
+        // 5. Potong stok bahan baku secara batch
+        for (const [matId, req] of requiredMaterialsMap.entries()) {
           await tx.rawMaterial.update({
-            where: { id: ing.rawMaterialId },
+            where: { id: matId },
             data: {
-              stock: { decrement: usedAmount },
-            },
-          });
-
-          await tx.rawMaterialLog.create({
-            data: {
-              rawMaterialId: ing.rawMaterialId,
-              changeQty: -usedAmount,
-              type: "pemakaian",
-              notes: `Pemakaian order ${orderNumber} (${item.qty} ${item.product.unit || "item"})`,
+              stock: { decrement: req.totalAmount },
             },
           });
         }
-      }
 
-      // 4. Tambah usageCount voucher jika pakai voucher
-      if (appliedVoucherId) {
-        await tx.voucher.update({
-          where: { id: appliedVoucherId },
-          data: {
-            usedCount: { increment: 1 },
-          },
-        });
-      }
+        // 6. Catat RawMaterialLog secara batch
+        if (requiredMaterialsMap.size > 0) {
+          await tx.rawMaterialLog.createMany({
+            data: Array.from(requiredMaterialsMap.entries()).map(([matId, req]) => ({
+              rawMaterialId: matId,
+              changeQty: -req.totalAmount,
+              type: "pemakaian",
+              notes: `Pemakaian order ${orderNumber} (${req.totalAmount} ${req.unit})`,
+            })),
+          });
+        }
 
-      // 5. Catat Payment jika ada
-      if (payment && Number(payment.amount) > 0) {
-        await tx.payment.create({
-          data: {
-            orderId: newOrder.id,
-            method: payment.method || "cash",
-            amount: Number(payment.amount),
-            isDownPayment: Boolean(payment.isDownPayment),
-            paidAt: new Date(),
-          },
-        });
-      }
+        // 7. Tambah usageCount voucher jika pakai voucher
+        if (appliedVoucherId) {
+          await tx.voucher.update({
+            where: { id: appliedVoucherId },
+            data: {
+              usedCount: { increment: 1 },
+            },
+          });
+        }
 
-      return newOrder;
-    });
+        return newOrder;
+      },
+      {
+        maxWait: 15000, // 15 detik waktu tunggu antrean koneksi
+        timeout: 30000, // 30 detik batas waktu transaksi
+      }
+    );
 
     const fullOrder = await prisma.order.findUnique({
       where: { id: result.id },
@@ -485,6 +514,10 @@ export async function PUT(req: NextRequest) {
             payments: true,
           },
         });
+      },
+      {
+        maxWait: 15000,
+        timeout: 30000,
       });
 
       return NextResponse.json(updated);
