@@ -1,0 +1,181 @@
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Menu, ShoppingCart, PlusCircle, AlertTriangle, Calendar, UserCheck, Lock } from "lucide-react";
+import CashierLoginModal from "./CashierLoginModal";
+
+interface TopNavProps {
+  onToggleSidebar: () => void;
+}
+
+export default function TopNav({ onToggleSidebar }: TopNavProps) {
+  const pathname = usePathname();
+  const [activeEvent, setActiveEvent] = useState<{ id: string; name: string; location: string } | null>(null);
+  const [lowStockCount, setLowStockCount] = useState<number>(0);
+  const [activeCashier, setActiveCashier] = useState<{
+    id: string;
+    name: string;
+    role: string;
+  } | null>(null);
+  const [isCashierModalOpen, setIsCashierModalOpen] = useState(false);
+
+  const fetchActiveEvent = () => {
+    fetch("/api/events")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const ongoing = data.find((e: any) => e.status === "ongoing");
+          setActiveEvent(ongoing || null);
+        } else {
+          setActiveEvent(null);
+        }
+      })
+      .catch(() => {
+        setActiveEvent(null);
+      });
+  };
+
+  const fetchLowStock = () => {
+    fetch("/api/stock")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.lowStockCount !== undefined) {
+          setLowStockCount(data.lowStockCount);
+        }
+      })
+      .catch(() => {});
+  };
+
+  const loadCashier = () => {
+    try {
+      const saved = localStorage.getItem("active_cashier");
+      if (saved) {
+        setActiveCashier(JSON.parse(saved));
+      } else {
+        setActiveCashier({
+          id: "default",
+          name: "Siti Rahma",
+          role: "KASIR",
+        });
+      }
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    fetchActiveEvent();
+    fetchLowStock();
+    loadCashier();
+
+    const handleEventUpdated = () => fetchActiveEvent();
+    const handleCashierUpdated = () => loadCashier();
+
+    window.addEventListener("event-updated", handleEventUpdated);
+    window.addEventListener("cashier-updated", handleCashierUpdated);
+
+    return () => {
+      window.removeEventListener("event-updated", handleEventUpdated);
+      window.removeEventListener("cashier-updated", handleCashierUpdated);
+    };
+  }, [pathname]);
+
+  const todayStr = new Intl.DateTimeFormat("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
+
+  return (
+    <>
+      <header className="sticky top-0 z-30 h-16 w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onToggleSidebar}
+            className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden"
+            aria-label="Toggle Menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+
+          {/* Ongoing Event Status */}
+          {activeEvent ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="font-semibold">{activeEvent.name}</span>
+              <span className="hidden md:inline text-emerald-600 dark:text-emerald-400">({activeEvent.location})</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Booth Mandiri / Tidak ada event aktif</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Active Cashier Shift Badge */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setIsCashierModalOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-xs text-slate-700 dark:text-slate-200 transition cursor-pointer"
+              title="Klik untuk ganti shift kasir cepat"
+            >
+              <UserCheck className="h-3.5 w-3.5 text-amber-500" />
+              <span className="hidden sm:inline font-medium">Kasir:</span>
+              <span className="font-bold truncate max-w-[100px]">{activeCashier?.name || "Kasir"}</span>
+            </button>
+            <Link
+              href="/login"
+              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 dark:hover:bg-slate-700/80 text-slate-600 dark:text-slate-300 transition"
+              title="Kunci Kiosk / Buka Halaman Login Penuh"
+            >
+              <Lock className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          {/* Low Stock Warning Icon */}
+          {lowStockCount > 0 && (
+            <Link
+              href="/stock"
+              title={`${lowStockCount} produk stok menipis!`}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-semibold hover:bg-amber-100 transition"
+            >
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+              <span className="hidden sm:inline">Stok Kritis:</span>
+              <span>{lowStockCount}</span>
+            </Link>
+          )}
+
+          {/* Fast Action Buttons */}
+          <Link
+            href="/po"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 text-xs font-semibold hover:bg-violet-100 transition"
+          >
+            <PlusCircle className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Input</span> PO
+          </Link>
+
+          <Link
+            href="/pos"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-xs transition"
+          >
+            <ShoppingCart className="h-3.5 w-3.5" />
+            <span>Kasir POS</span>
+          </Link>
+        </div>
+      </header>
+
+      {/* Cashier Shift Modal */}
+      {isCashierModalOpen && (
+        <CashierLoginModal
+          isOpen={isCashierModalOpen}
+          onClose={() => setIsCashierModalOpen(false)}
+          onSuccess={(emp) => setActiveCashier(emp)}
+        />
+      )}
+    </>
+  );
+}
