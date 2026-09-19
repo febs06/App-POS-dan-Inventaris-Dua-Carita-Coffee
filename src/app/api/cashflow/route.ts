@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+    const account = searchParams.get("account"); // "CASH" | "QRIS" | "all"
     const month = searchParams.get("month"); // "1" - "12" or "all"
     const year = searchParams.get("year") || "2026";
     const type = searchParams.get("type"); // "MASUK" | "KELUAR" | "all"
@@ -12,6 +13,10 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search");
 
     const where: any = {};
+
+    if (account && account !== "all") {
+      where.account = account;
+    }
 
     if (type && type !== "all") {
       where.type = type;
@@ -46,51 +51,48 @@ export async function GET(req: NextRequest) {
       orderBy: [{ date: "asc" }, { seqNo: "asc" }],
     });
 
-    // Overall stats (regardless of filter)
-    const allRecords = await prisma.cashRecord.findMany({
+    // Compute overall stats across all records for CASH and QRIS
+    const allCashRecords = await prisma.cashRecord.findMany({
+      where: { account: "CASH" },
       orderBy: [{ date: "asc" }, { seqNo: "asc" }],
     });
 
-    let totalMasuk = 0;
-    let totalKeluar = 0;
-    const categoryStats: Record<string, { masuk: number; keluar: number }> = {};
-    const monthlyStats: Record<string, { masuk: number; keluar: number; balance: number }> = {};
+    const allQrisRecords = await prisma.cashRecord.findMany({
+      where: { account: "QRIS" },
+      orderBy: [{ date: "asc" }, { seqNo: "asc" }],
+    });
 
-    for (const r of allRecords) {
-      if (r.type === "MASUK") totalMasuk += r.amount;
-      if (r.type === "KELUAR") totalKeluar += r.amount;
+    const latestCash = allCashRecords[allCashRecords.length - 1];
+    const latestQris = allQrisRecords[allQrisRecords.length - 1];
 
-      // Category breakdown
-      if (!categoryStats[r.category]) {
-        categoryStats[r.category] = { masuk: 0, keluar: 0 };
-      }
-      if (r.type === "MASUK") categoryStats[r.category].masuk += r.amount;
-      if (r.type === "KELUAR") categoryStats[r.category].keluar += r.amount;
+    const cashBalance = latestCash ? latestCash.balance : 0;
+    const qrisBalance = latestQris ? latestQris.balance : 0;
+    const totalLiquidity = cashBalance + qrisBalance;
 
-      // Monthly breakdown
-      const mKey = `${r.date.getUTCFullYear()}-${String(r.date.getUTCMonth() + 1).padStart(2, "0")}`;
-      if (!monthlyStats[mKey]) {
-        monthlyStats[mKey] = { masuk: 0, keluar: 0, balance: 0 };
-      }
-      if (r.type === "MASUK") monthlyStats[mKey].masuk += r.amount;
-      if (r.type === "KELUAR") monthlyStats[mKey].keluar += r.amount;
-      monthlyStats[mKey].balance = r.balance;
+    // Subtotal for currently filtered records
+    let filteredMasuk = 0;
+    let filteredKeluar = 0;
+    for (const r of records) {
+      if (r.type === "MASUK") filteredMasuk += r.amount;
+      if (r.type === "KELUAR") filteredKeluar += r.amount;
     }
 
-    // Get latest cash balance
-    const latestRecord = allRecords[allRecords.length - 1];
-    const currentBalance = latestRecord ? latestRecord.balance : 0;
+    // Determine current display balance
+    let currentBalance = totalLiquidity;
+    if (account === "CASH") currentBalance = cashBalance;
+    if (account === "QRIS") currentBalance = qrisBalance;
 
     return NextResponse.json({
       records,
       summary: {
         currentBalance,
-        totalMasuk,
-        totalKeluar,
-        netCashFlow: totalMasuk - totalKeluar,
-        totalTransactions: allRecords.length,
-        categoryStats,
-        monthlyStats,
+        cashBalance,
+        qrisBalance,
+        totalLiquidity,
+        totalMasuk: filteredMasuk,
+        totalKeluar: filteredKeluar,
+        netCashFlow: filteredMasuk - filteredKeluar,
+        totalTransactions: records.length,
       },
     });
   } catch (error: any) {
@@ -103,7 +105,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, type, category, amount, notes, cashier, date } = body;
+    const { account = "CASH", name, type, category, amount, notes, cashier, date } = body;
 
     if (!name || !type || !category || amount === undefined) {
       return NextResponse.json(
@@ -120,8 +122,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Find the latest record to compute seqNo and running balance
+    const accountType = account === "QRIS" ? "QRIS" : "CASH";
+
+    // Find the latest record of this specific account to compute seqNo and running balance
     const latestRecord = await prisma.cashRecord.findFirst({
+      where: { account: accountType },
       orderBy: [{ date: "desc" }, { seqNo: "desc" }],
     });
 
@@ -137,6 +142,7 @@ export async function POST(req: NextRequest) {
 
     const newRecord = await prisma.cashRecord.create({
       data: {
+        account: accountType,
         seqNo: lastSeqNo + 1,
         date: recordDate,
         name: name.trim(),

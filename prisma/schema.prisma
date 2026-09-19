@@ -267,6 +267,7 @@ model SupplierPriceHistory {
 model CashRecord {
   id        String   @id @default(cuid())
   seqNo     Int?     // No urut pencatatan
+  account   String   @default("CASH") // "CASH" | "QRIS"
   date      DateTime
   name      String
   type      String   // "MASUK" | "KELUAR"

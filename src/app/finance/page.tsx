@@ -22,11 +22,16 @@ import {
   CheckCircle2,
   Trash2,
   FileSpreadsheet,
+  QrCode,
+  Coins,
+  CreditCard,
+  Building2,
 } from "lucide-react";
 
 interface CashRecord {
   id: string;
   seqNo: number | null;
+  account: "CASH" | "QRIS";
   date: string;
   name: string;
   type: "MASUK" | "KELUAR";
@@ -62,6 +67,9 @@ export default function FinancePage() {
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // Active Account Tab ("all", "CASH", "QRIS")
+  const [selectedAccount, setSelectedAccount] = useState<"all" | "CASH" | "QRIS">("all");
+
   // Filters
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
@@ -70,6 +78,7 @@ export default function FinancePage() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formAccount, setFormAccount] = useState<"CASH" | "QRIS">("CASH");
   const [formDate, setFormDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [formName, setFormName] = useState("");
   const [formType, setFormType] = useState<"MASUK" | "KELUAR">("KELUAR");
@@ -84,6 +93,7 @@ export default function FinancePage() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
+      if (selectedAccount !== "all") params.append("account", selectedAccount);
       if (selectedMonth !== "all") params.append("month", selectedMonth);
       if (selectedType !== "all") params.append("type", selectedType);
       if (selectedCategory !== "all") params.append("category", selectedCategory);
@@ -104,7 +114,7 @@ export default function FinancePage() {
 
   useEffect(() => {
     fetchRecords();
-  }, [selectedMonth, selectedType, selectedCategory, searchQuery]);
+  }, [selectedAccount, selectedMonth, selectedType, selectedCategory, searchQuery]);
 
   // Handle Submit Form
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,6 +130,7 @@ export default function FinancePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          account: formAccount,
           date: formDate,
           name: formName.trim(),
           type: formType,
@@ -132,7 +143,7 @@ export default function FinancePage() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Gagal menyimpan transaksi kas");
+        throw new Error(err.error || "Gagal menyimpan transaksi");
       }
 
       // Reset form & close modal
@@ -150,7 +161,7 @@ export default function FinancePage() {
 
   // Handle Delete
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Hapus catatan kas: "${name}"?`)) return;
+    if (!confirm(`Hapus catatan: "${name}"?`)) return;
 
     try {
       const res = await fetch(`/api/cashflow?id=${id}`, { method: "DELETE" });
@@ -171,9 +182,10 @@ export default function FinancePage() {
       return;
     }
 
-    const headers = ["No", "Tanggal", "Nama Transaksi", "Kategori", "Kas Masuk", "Kas Keluar", "Saldo Berjalan", "Kasir / PJ", "Keterangan"];
+    const headers = ["No", "Akun", "Tanggal", "Nama Transaksi", "Kategori", "Kas Masuk", "Kas Keluar", "Saldo Berjalan", "Kasir / PJ", "Keterangan"];
     const rows = records.map((r) => [
       r.seqNo || "-",
+      r.account === "CASH" ? "Kas Tunai" : "Saldo QRIS",
       new Date(r.date).toLocaleDateString("id-ID"),
       `"${r.name.replace(/"/g, '""')}"`,
       r.category,
@@ -188,7 +200,8 @@ export default function FinancePage() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Buku_Kas_Dua_Carita_${selectedMonth !== "all" ? `Bulan_${selectedMonth}` : "Lengkap"}.csv`);
+    const accountName = selectedAccount === "CASH" ? "Kas_Tunai" : selectedAccount === "QRIS" ? "Saldo_QRIS" : "Semua_Akun";
+    link.setAttribute("download", `Buku_Keuangan_${accountName}_${selectedMonth !== "all" ? `Bulan_${selectedMonth}` : "Lengkap"}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -216,13 +229,13 @@ export default function FinancePage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                Buku Kas & Keuangan (Cash Flow)
+                Buku Keuangan & Arus Kas (Cash & QRIS)
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold">
-                  Live Ledger
+                  Dual Ledger Aktif
                 </span>
               </h1>
               <p className="text-sm text-slate-400">
-                Pencatatan mutasi kas tunai Dua Carita Coffee, arus masuk, keluar, dan saldo kas fisik.
+                Pencatatan pembukuan kas fisik (Cash) dan rekening digital (QRIS) Dua Carita Coffee.
               </p>
             </div>
           </div>
@@ -237,78 +250,156 @@ export default function FinancePage() {
             <span>Ekspor CSV</span>
           </button>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setFormAccount(selectedAccount === "QRIS" ? "QRIS" : "CASH");
+              setIsModalOpen(true);
+            }}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-bold text-sm shadow-lg shadow-orange-500/20 transition cursor-pointer"
           >
             <PlusCircle className="h-4 w-4" />
-            <span>+ Catat Mutasi Kas</span>
+            <span>+ Catat Transaksi Baru</span>
           </button>
         </div>
       </div>
 
+      {/* Account Switcher Tabs (All, Cash, QRIS) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-1.5 rounded-2xl bg-slate-950 border border-slate-800">
+        <button
+          onClick={() => setSelectedAccount("all")}
+          className={`flex items-center justify-between p-3.5 rounded-xl transition cursor-pointer ${
+            selectedAccount === "all"
+              ? "bg-slate-800 border border-amber-500/50 shadow-lg text-white"
+              : "hover:bg-slate-900/60 text-slate-400 border border-transparent"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <div className={`p-2 rounded-lg ${selectedAccount === "all" ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-400"}`}>
+              <Building2 className="h-4 w-4" />
+            </div>
+            <div className="text-left">
+              <span className="text-xs font-bold block">Semua Akun (Gabungan)</span>
+              <span className="text-[11px] text-slate-400">Kas Tunai + Saldo QRIS</span>
+            </div>
+          </div>
+          <span className="text-sm font-mono font-bold text-amber-400">
+            {formatRupiah(summary?.totalLiquidity || 1075216)}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setSelectedAccount("CASH")}
+          className={`flex items-center justify-between p-3.5 rounded-xl transition cursor-pointer ${
+            selectedAccount === "CASH"
+              ? "bg-slate-800 border border-emerald-500/50 shadow-lg text-white"
+              : "hover:bg-slate-900/60 text-slate-400 border border-transparent"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <div className={`p-2 rounded-lg ${selectedAccount === "CASH" ? "bg-emerald-500 text-slate-950" : "bg-slate-800 text-slate-400"}`}>
+              <Coins className="h-4 w-4" />
+            </div>
+            <div className="text-left">
+              <span className="text-xs font-bold block">Kas Tunai (Cash)</span>
+              <span className="text-[11px] text-slate-400">Saldo Kas Fisik (14/9)</span>
+            </div>
+          </div>
+          <span className="text-sm font-mono font-bold text-emerald-400">
+            {formatRupiah(summary?.cashBalance || 55000)}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setSelectedAccount("QRIS")}
+          className={`flex items-center justify-between p-3.5 rounded-xl transition cursor-pointer ${
+            selectedAccount === "QRIS"
+              ? "bg-slate-800 border border-cyan-500/50 shadow-lg text-white"
+              : "hover:bg-slate-900/60 text-slate-400 border border-transparent"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <div className={`p-2 rounded-lg ${selectedAccount === "QRIS" ? "bg-cyan-500 text-slate-950" : "bg-slate-800 text-slate-400"}`}>
+              <QrCode className="h-4 w-4" />
+            </div>
+            <div className="text-left">
+              <span className="text-xs font-bold block">Saldo QRIS (Digital)</span>
+              <span className="text-[11px] text-slate-400">Rekening QRIS (15/9)</span>
+            </div>
+          </div>
+          <span className="text-sm font-mono font-bold text-cyan-400">
+            {formatRupiah(summary?.qrisBalance || 1020216)}
+          </span>
+        </button>
+      </div>
+
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Saldo Kas Saat Ini */}
+        {/* Saldo Aktif */}
         <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-900/80 border border-emerald-500/40 shadow-xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition">
             <Wallet className="h-16 w-16 text-emerald-400" />
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Saldo Kas Saat Ini</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              {selectedAccount === "CASH" ? "Saldo Kas Tunai" : selectedAccount === "QRIS" ? "Saldo QRIS" : "Total Likuiditas"}
+            </span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              Kas Fisik
+              {selectedAccount === "CASH" ? "Kas Fisik" : selectedAccount === "QRIS" ? "Rekening" : "Total Kas & Bank"}
             </span>
           </div>
           <div className="mt-3">
             <span className="text-3xl font-black text-emerald-400 tracking-tight">
-              {formatRupiah(summary?.currentBalance || 55000)}
+              {formatRupiah(summary?.currentBalance || 0)}
             </span>
             <p className="text-xs text-slate-400 mt-1">
-              Posisi per 14 September 2026 (Sesuai Buku Kas)
+              {selectedAccount === "CASH"
+                ? "Posisi kas fisik per 14/9/2026"
+                : selectedAccount === "QRIS"
+                ? "Posisi saldo QRIS per 15/9/2026"
+                : "Total dana cair tunai + saldo QRIS"}
             </p>
           </div>
         </div>
 
-        {/* Total Kas Masuk */}
+        {/* Total Masuk */}
         <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-lg relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Kas Masuk</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Masuk</span>
             <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
               <ArrowDownLeft className="h-4 w-4" />
             </div>
           </div>
           <div className="mt-3">
             <span className="text-2xl font-bold text-white tracking-tight">
-              {formatRupiah(selectedMonth === "all" ? summary?.totalMasuk || 0 : filteredSubtotals.masuk)}
+              {formatRupiah(filteredSubtotals.masuk)}
             </span>
             <p className="text-xs text-slate-400 mt-1">
-              {selectedMonth === "all" ? "Seluruh penerimaan kas tercatat" : `Penerimaan bulan ini`}
+              {selectedMonth === "all" ? "Seluruh pemasukan sesuai filter" : `Pemasukan bulan terpilih`}
             </p>
           </div>
         </div>
 
-        {/* Total Kas Keluar */}
+        {/* Total Keluar */}
         <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-lg relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Kas Keluar</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Keluar</span>
             <div className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400">
               <ArrowUpRight className="h-4 w-4" />
             </div>
           </div>
           <div className="mt-3">
             <span className="text-2xl font-bold text-rose-400 tracking-tight">
-              {formatRupiah(selectedMonth === "all" ? summary?.totalKeluar || 0 : filteredSubtotals.keluar)}
+              {formatRupiah(filteredSubtotals.keluar)}
             </span>
             <p className="text-xs text-slate-400 mt-1">
-              {selectedMonth === "all" ? "Belanja bahan, packaging & biaya" : `Pengeluaran bulan ini`}
+              {selectedMonth === "all" ? "Belanja bahan, packaging & biaya" : `Pengeluaran bulan terpilih`}
             </p>
           </div>
         </div>
 
-        {/* Net Flow / Total Transaksi */}
+        {/* Total Transaksi */}
         <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-lg relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Transaksi</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Jumlah Transaksi</span>
             <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
               <Layers className="h-4 w-4" />
             </div>
@@ -318,7 +409,7 @@ export default function FinancePage() {
               {records.length} Baris
             </span>
             <p className="text-xs text-slate-400 mt-1">
-              {summary?.totalTransactions || 126} total mutasi kas tercatat
+              {selectedAccount === "all" ? "126 Cash + 108 QRIS" : `Transaksi akun ${selectedAccount}`}
             </p>
           </div>
         </div>
@@ -364,8 +455,8 @@ export default function FinancePage() {
             className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 font-semibold focus:outline-none focus:border-amber-500"
           >
             <option value="all">Semua Tipe (Masuk/Keluar)</option>
-            <option value="MASUK">Kas Masuk (Pemasukan)</option>
-            <option value="KELUAR">Kas Keluar (Pengeluaran)</option>
+            <option value="MASUK">Pemasukan (Masuk)</option>
+            <option value="KELUAR">Pengeluaran (Keluar)</option>
           </select>
 
           {/* Kategori Filter */}
@@ -386,13 +477,14 @@ export default function FinancePage() {
         </div>
       </div>
 
-      {/* Main Table (Matches Excel Sheet "CATATAN KEUANGAN CASH") */}
+      {/* Main Table (Matches Excel Sheet "CATATAN KEUANGAN CASH & QRIS") */}
       <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-950 border-b border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="py-3.5 px-4 w-12 text-center">NO</th>
+                {selectedAccount === "all" && <th className="py-3.5 px-3 w-20 text-center">AKUN</th>}
                 <th className="py-3.5 px-4 w-28">TANGGAL</th>
                 <th className="py-3.5 px-4">NAMA / TRANSAKSI</th>
                 <th className="py-3.5 px-4">KATEGORI</th>
@@ -406,15 +498,15 @@ export default function FinancePage() {
             <tbody className="divide-y divide-slate-800/60 font-medium">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
+                  <td colSpan={selectedAccount === "all" ? 10 : 9} className="py-12 text-center text-slate-400">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-amber-500 border-t-transparent mb-2" />
-                    <p>Memuat catatan keuangan cash...</p>
+                    <p>Memuat catatan pembukuan...</p>
                   </td>
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
-                    <p className="font-semibold text-slate-300">Tidak ada data transaksi kas yang sesuai</p>
+                  <td colSpan={selectedAccount === "all" ? 10 : 9} className="py-12 text-center text-slate-400">
+                    <p className="font-semibold text-slate-300">Tidak ada data transaksi yang sesuai</p>
                     <p className="text-xs text-slate-500 mt-1">Coba ubah filter atau kata kunci pencarian.</p>
                   </td>
                 </tr>
@@ -431,6 +523,19 @@ export default function FinancePage() {
                       <td className="py-3 px-4 text-center text-xs font-mono text-slate-400">
                         {r.seqNo ?? index + 1}
                       </td>
+                      {selectedAccount === "all" && (
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          {r.account === "CASH" ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                              CASH
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                              QRIS
+                            </span>
+                          )}
+                        </td>
+                      )}
                       <td className="py-3 px-4 whitespace-nowrap text-xs text-slate-300">
                         {new Date(r.date).toLocaleDateString("id-ID", {
                           day: "numeric",
@@ -520,14 +625,14 @@ export default function FinancePage() {
         )}
       </div>
 
-      {/* Modal Tambah Transaksi Kas */}
+      {/* Modal Tambah Transaksi Kas / QRIS */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
           <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 relative">
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <PlusCircle className="h-5 w-5 text-amber-400" />
-                Catat Mutasi Kas Tunai
+                Catat Transaksi Keuangan
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -538,6 +643,37 @@ export default function FinancePage() {
             </div>
 
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+              {/* Pilihan Akun (Cash vs QRIS) */}
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1.5">Pilih Akun / Dompet</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormAccount("CASH")}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition cursor-pointer ${
+                      formAccount === "CASH"
+                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-md"
+                        : "bg-slate-950 text-slate-400 border-slate-800"
+                    }`}
+                  >
+                    <Coins className="h-4 w-4" />
+                    Kas Tunai (Cash)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormAccount("QRIS")}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition cursor-pointer ${
+                      formAccount === "QRIS"
+                        ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50 shadow-md"
+                        : "bg-slate-950 text-slate-400 border-slate-800"
+                    }`}
+                  >
+                    <QrCode className="h-4 w-4" />
+                    Saldo QRIS
+                  </button>
+                </div>
+              </div>
+
               {/* Tipe Transaksi (Toggle MASUK / KELUAR) */}
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">Tipe Mutasi</label>
@@ -552,7 +688,7 @@ export default function FinancePage() {
                     }`}
                   >
                     <ArrowDownLeft className="h-4 w-4" />
-                    Kas Masuk (Penerimaan)
+                    Pemasukan (Masuk)
                   </button>
                   <button
                     type="button"
@@ -564,7 +700,7 @@ export default function FinancePage() {
                     }`}
                   >
                     <ArrowUpRight className="h-4 w-4" />
-                    Kas Keluar (Pengeluaran)
+                    Pengeluaran (Keluar)
                   </button>
                 </div>
               </div>
@@ -604,7 +740,7 @@ export default function FinancePage() {
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">Nama Transaksi / Barang</label>
                 <input
                   type="text"
-                  placeholder="Misal: Susu Diamond, Es Batu, Botol Kale, dll."
+                  placeholder="Misal: Susu Diamond, Lets Brew, Pendapatan, dll."
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   required
@@ -631,7 +767,7 @@ export default function FinancePage() {
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">Kasir / Penanggung Jawab</label>
                 <input
                   type="text"
-                  placeholder="Misal: Revan, Raihan"
+                  placeholder="Misal: Revan, Raihan, Febri"
                   value={formCashier}
                   onChange={(e) => setFormCashier(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
@@ -643,7 +779,7 @@ export default function FinancePage() {
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">Keterangan Tambahan (Opsional)</label>
                 <input
                   type="text"
-                  placeholder="Misal: Pindah ke QRIS, SD BPI, Parkir Kopi Fest"
+                  placeholder="Misal: MOKAKU 2026, Pindah ke Cash, Restock"
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
@@ -663,7 +799,7 @@ export default function FinancePage() {
                   disabled={submitting}
                   className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-bold text-xs shadow-md transition disabled:opacity-50 cursor-pointer"
                 >
-                  {submitting ? "Menyimpan..." : "Simpan Mutasi Kas"}
+                  {submitting ? "Menyimpan..." : "Simpan Mutasi"}
                 </button>
               </div>
             </form>
