@@ -87,86 +87,90 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-30 h-16 w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-30 h-14 sm:h-16 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-3 sm:px-6 flex items-center justify-between gap-2 overflow-x-clip">
+        {/* Left Side: Hamburger & Active Event */}
+        <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={onToggleSidebar}
-            className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden"
+            className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden shrink-0 border border-slate-200/80 dark:border-slate-700/60"
             aria-label="Toggle Menu"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-4 w-4" />
           </button>
 
           {/* Ongoing Event Status */}
           {activeEvent ? (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300">
-              <span className="relative flex h-2 w-2">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 shrink-0">
+              <span className="relative flex h-2 w-2 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="font-semibold">{activeEvent.name}</span>
+              <span className="font-bold text-[11px] sm:text-xs truncate max-w-[110px] sm:max-w-[180px]">{activeEvent.name}</span>
               <span className="hidden md:inline text-emerald-600 dark:text-emerald-400">({activeEvent.location})</span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400">
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 shrink-0">
               <Calendar className="h-3.5 w-3.5" />
-              <span>Booth Mandiri / Tidak ada event aktif</span>
+              <span>Booth Mandiri</span>
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* Right Side: Cashier, Low Stock, & POS Action */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          {/* Low Stock Warning Icon */}
+          {lowStockCount > 0 && (
+            <Link
+              href="/stock"
+              title={`${lowStockCount} produk stok menipis!`}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-[11px] font-bold hover:bg-amber-100 transition shrink-0"
+            >
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <span className="hidden md:inline font-semibold">Kritis:</span>
+              <span>{lowStockCount}</span>
+            </Link>
+          )}
+
           {/* Active Cashier Shift Badge */}
           <div className="flex items-center gap-1">
             <button
               onClick={() => setIsCashierModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-xs text-slate-700 dark:text-slate-200 transition cursor-pointer"
-              title="Klik untuk ganti shift kasir cepat"
+              className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-xs text-slate-700 dark:text-slate-200 transition cursor-pointer shrink-0"
+              title="Klik untuk ganti shift kasir"
             >
-              <UserCheck className="h-3.5 w-3.5 text-amber-500" />
-              <span className="hidden sm:inline font-medium">Kasir:</span>
-              <span className="font-bold truncate max-w-[100px]">{activeCashier?.name || "Kasir"}</span>
+              <UserCheck className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <span className="hidden md:inline text-slate-500 font-medium">Kasir:</span>
+              <span className="font-bold text-[11px] sm:text-xs truncate max-w-[65px] sm:max-w-[110px]">{activeCashier?.name || "Kasir"}</span>
             </button>
             <Link
               href="/login"
-              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 dark:hover:bg-slate-700/80 text-slate-600 dark:text-slate-300 transition"
+              className="hidden md:inline-flex p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 dark:hover:bg-slate-700/80 text-slate-600 dark:text-slate-300 transition shrink-0"
               title="Kunci Kiosk / Buka Halaman Login Penuh"
             >
               <Lock className="h-3.5 w-3.5" />
             </Link>
           </div>
 
-          {/* Low Stock Warning Icon */}
-          {lowStockCount > 0 && (
-            <Link
-              href="/stock"
-              title={`${lowStockCount} produk stok menipis!`}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-semibold hover:bg-amber-100 transition"
-            >
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-              <span className="hidden sm:inline">Stok Kritis:</span>
-              <span>{lowStockCount}</span>
-            </Link>
-          )}
-
           {/* Fast Action Buttons */}
           <Link
             href="/po"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 text-xs font-semibold hover:bg-violet-100 transition"
+            className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 text-xs font-semibold hover:bg-violet-100 transition shrink-0"
           >
             <PlusCircle className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Input</span> PO
+            <span>PO</span>
           </Link>
 
           <Link
             href="/pos"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-xs transition"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-xs transition shrink-0"
           >
             <ShoppingCart className="h-3.5 w-3.5" />
-            <span>Kasir POS</span>
+            <span className="hidden sm:inline">Kasir POS</span>
+            <span className="sm:hidden">POS</span>
           </Link>
         </div>
       </header>
+
 
       {/* Cashier Shift Modal */}
       {isCashierModalOpen && (

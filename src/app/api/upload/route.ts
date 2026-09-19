@@ -24,21 +24,38 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Sanitasi nama file dan buat nama unik
-    const ext = path.extname(file.name) || ".png";
-    const baseName = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
-    const uniqueFileName = `${Date.now()}-${baseName}${ext}`;
+    let fileUrl = "";
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
+    // Cek jika berjalan di lokal (bukan Vercel Serverless)
+    if (!process.env.VERCEL) {
+      try {
+        const ext = path.extname(file.name) || ".png";
+        const baseName = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
+        const uniqueFileName = `${Date.now()}-${baseName}${ext}`;
 
-    const filePath = path.join(uploadDir, uniqueFileName);
-    await writeFile(filePath, buffer);
+        const uploadDir = path.join(process.cwd(), "public", "uploads");
+        await mkdir(uploadDir, { recursive: true });
 
-    const fileUrl = `/uploads/${uniqueFileName}`;
+        const filePath = path.join(uploadDir, uniqueFileName);
+        await writeFile(filePath, buffer);
+
+        fileUrl = `/uploads/${uniqueFileName}`;
+      } catch (fsErr) {
+        console.warn("Filesystem read-only, falling back to Data URL:", fsErr);
+      }
+    }
+
+    // Di Vercel (read-only filesystem): konversi ke Data URL (Base64)
+    // agar foto tersimpan permanen di database PostgreSQL tanpa perlu cloud storage berbayar
+    if (!fileUrl) {
+      const mimeType = file.type || "image/png";
+      const base64 = buffer.toString("base64");
+      fileUrl = `data:${mimeType};base64,${base64}`;
+    }
+
     return NextResponse.json({ url: fileUrl, message: "Foto berhasil diunggah" }, { status: 201 });
   } catch (error: any) {
     console.error("Upload error:", error);
-    return NextResponse.json({ error: "Gagal mengunggah foto produk" }, { status: 500 });
+    return NextResponse.json({ error: "Gagal mengunggah foto: " + (error?.message || "Internal error") }, { status: 500 });
   }
 }
