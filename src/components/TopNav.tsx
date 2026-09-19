@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Menu, ShoppingCart, PlusCircle, AlertTriangle, Calendar, UserCheck, Lock } from "lucide-react";
 import CashierLoginModal from "./CashierLoginModal";
 
@@ -10,6 +10,7 @@ interface TopNavProps {
 
 export default function TopNav({ onToggleSidebar }: TopNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [activeEvent, setActiveEvent] = useState<{ id: string; name: string; location: string } | null>(null);
   const [lowStockCount, setLowStockCount] = useState<number>(0);
   const [activeCashier, setActiveCashier] = useState<{
@@ -18,6 +19,14 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
     role: string;
   } | null>(null);
   const [isCashierModalOpen, setIsCashierModalOpen] = useState(false);
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem("active_cashier");
+      window.dispatchEvent(new Event("cashier-updated"));
+      router.push("/login");
+    } catch (e) {}
+  };
 
   const fetchActiveEvent = () => {
     fetch("/api/events")
@@ -52,14 +61,13 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
       if (saved) {
         setActiveCashier(JSON.parse(saved));
       } else {
-        setActiveCashier({
-          id: "default",
-          name: "Siti Rahma",
-          role: "KASIR",
-        });
+        setActiveCashier(null);
       }
-    } catch (e) {}
+    } catch (e) {
+      setActiveCashier(null);
+    }
   };
+
 
   useEffect(() => {
     fetchActiveEvent();
@@ -142,13 +150,14 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
               <span className="hidden md:inline text-slate-500 font-medium">Kasir:</span>
               <span className="font-bold text-[11px] sm:text-xs truncate max-w-[65px] sm:max-w-[110px]">{activeCashier?.name || "Kasir"}</span>
             </button>
-            <Link
-              href="/login"
-              className="hidden md:inline-flex p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 dark:hover:bg-slate-700/80 text-slate-600 dark:text-slate-300 transition shrink-0"
-              title="Kunci Kiosk / Buka Halaman Login Penuh"
+            <button
+              onClick={handleLogout}
+              className="hidden md:inline-flex p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 dark:hover:bg-slate-700/80 text-slate-600 dark:text-slate-300 transition shrink-0 cursor-pointer"
+              title="Keluar / Kunci Kiosk"
             >
               <Lock className="h-3.5 w-3.5" />
-            </Link>
+            </button>
+
           </div>
 
           {/* Fast Action Buttons */}

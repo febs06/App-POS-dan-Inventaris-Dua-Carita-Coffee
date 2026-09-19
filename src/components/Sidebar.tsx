@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -43,6 +44,7 @@ const NAV_ITEMS = [
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [storeSetting, setStoreSetting] = useState<{
     storeName: string;
     tagline: string | null;
@@ -79,17 +81,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       if (saved) {
         setActiveCashier(JSON.parse(saved));
       } else {
-        // Fallback default
-        setActiveCashier({
-          id: "default",
-          name: "Siti Rahma",
-          role: "KASIR",
-        });
+        setActiveCashier(null);
       }
     } catch (e) {
-      // ignore
+      setActiveCashier(null);
     }
   };
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem("active_cashier");
+      window.dispatchEvent(new Event("cashier-updated"));
+      router.push("/login");
+    } catch (e) {}
+  };
+
 
   useEffect(() => {
     loadSettings();
@@ -211,13 +217,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               >
                 Ganti
               </button>
-              <Link
-                href="/login"
-                className="text-[10px] font-bold px-1.5 py-1 rounded-md bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-300 transition shrink-0 cursor-pointer flex items-center gap-1"
-                title="Kunci Kiosk / Halaman Login"
+              <button
+                onClick={handleLogout}
+                className="text-[10px] font-bold px-1.5 py-1 rounded-md bg-slate-800 hover:bg-rose-500 hover:text-white text-slate-300 transition shrink-0 cursor-pointer flex items-center gap-1"
+                title="Keluar / Kunci Kiosk"
               >
                 <Lock className="h-3 w-3" />
-              </Link>
+              </button>
+
             </div>
           </div>
         </div>
