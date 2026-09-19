@@ -280,4 +280,22 @@ model CashRecord {
   updatedAt DateTime @updatedAt
 }
 
+model RabItem {
+  id         String   @id @default(cuid())
+  month      String   // "MEI 2026", "JUNI 2026", "JULI 2026", "AGUSTUS 2026"
+  year       Int      @default(2026)
+  seqNo      Int?     // No urut item
+  name       String
+  qty        Float    @default(1)
+  unit       String?  // Pcs, Pack, Kg, L, G, Roll, dll
+  unitPrice  Float    @default(0)
+  totalPrice Float    @default(0)
+  notes      String?  // Keterangan spesifikasi/ukuran
+  fundedBy   String?  // "DCC", "Febri", "Raihan", "Revan"
+  status     String   @default("PLANNED") // "PLANNED" | "REALIZED"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+
 
