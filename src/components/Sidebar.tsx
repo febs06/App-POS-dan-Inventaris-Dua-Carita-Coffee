@@ -65,10 +65,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const loadSettings = async () => {
     try {
+      const cached = localStorage.getItem("store_settings");
+      if (cached) {
+        setStoreSetting(JSON.parse(cached));
+      }
       const res = await fetch("/api/settings");
       const data = await res.json();
       if (data && data.storeName) {
         setStoreSetting(data);
+        localStorage.setItem("store_settings", JSON.stringify(data));
       }
     } catch (err) {
       console.error("Failed to load settings in sidebar:", err);

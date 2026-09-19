@@ -10,4 +10,5 @@ export const prisma =
     log: ["error"],
   });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+// Reuse PrismaClient connection pool across warm serverless functions
+globalForPrisma.prisma = prisma;

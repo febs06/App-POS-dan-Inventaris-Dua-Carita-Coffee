@@ -75,7 +75,26 @@ export default function PosPage() {
   }, []);
 
   const loadInitialData = async () => {
-    setLoading(true);
+    // 1. Render data seketika dari session cache (0ms instant loading)
+    try {
+      const cachedProds = sessionStorage.getItem("pos_cache_prods");
+      const cachedCats = sessionStorage.getItem("pos_cache_cats");
+      const cachedEvs = sessionStorage.getItem("pos_cache_evs");
+      if (cachedProds && cachedCats) {
+        setProducts(JSON.parse(cachedProds));
+        setCategories(JSON.parse(cachedCats));
+        if (cachedEvs) {
+          const parsedEvs = JSON.parse(cachedEvs);
+          setEvents(parsedEvs);
+          const ongoing = parsedEvs.find((e: any) => e.status === "ongoing");
+          if (ongoing) setSelectedEventId(ongoing.id);
+          else if (parsedEvs.length > 0) setSelectedEventId(parsedEvs[0].id);
+        }
+        setLoading(false);
+      }
+    } catch (e) {}
+
+    // 2. Ambil data terbaru di background tanpa membuat UI macet
     try {
       const [prodRes, catRes, evRes] = await Promise.all([
         fetch("/api/products?activeOnly=true"),
@@ -89,10 +108,17 @@ export default function PosPage() {
         evRes.json(),
       ]);
 
-      if (Array.isArray(prods)) setProducts(prods);
-      if (Array.isArray(cats)) setCategories(cats);
+      if (Array.isArray(prods)) {
+        setProducts(prods);
+        sessionStorage.setItem("pos_cache_prods", JSON.stringify(prods));
+      }
+      if (Array.isArray(cats)) {
+        setCategories(cats);
+        sessionStorage.setItem("pos_cache_cats", JSON.stringify(cats));
+      }
       if (Array.isArray(evs)) {
         setEvents(evs);
+        sessionStorage.setItem("pos_cache_evs", JSON.stringify(evs));
         const ongoing = evs.find((e: any) => e.status === "ongoing");
         if (ongoing) setSelectedEventId(ongoing.id);
         else if (evs.length > 0) setSelectedEventId(evs[0].id);

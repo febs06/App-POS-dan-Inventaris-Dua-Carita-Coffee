@@ -36,19 +36,43 @@ export default function DashboardPage() {
   }, []);
 
   const fetchDashboardData = async () => {
-    setLoading(true);
+    // 1. Render data instan dari session cache (0ms perceived latency)
+    try {
+      const cached = sessionStorage.getItem("dashboard_cache");
+      if (cached) {
+        const d = JSON.parse(cached);
+        if (d.ongoingEvent !== undefined) setOngoingEvent(d.ongoingEvent);
+        if (d.upcomingEvent !== undefined) setUpcomingEvent(d.upcomingEvent);
+        if (d.todayRevenue !== undefined) setTodayRevenue(d.todayRevenue);
+        if (d.todayOrdersCount !== undefined) setTodayOrdersCount(d.todayOrdersCount);
+        if (d.pendingPO) setPendingPO(d.pendingPO);
+        if (d.recentOrders) setRecentOrders(d.recentOrders);
+        if (d.lowStockProducts) setLowStockProducts(d.lowStockProducts);
+        setLoading(false);
+      }
+    } catch (e) {}
+
+    // 2. Fetch fresh data di background
     try {
       // 1. Fetch Events
       const evRes = await fetch("/api/events");
       const evData = await evRes.json();
+      let currentOngoing = null;
+      let currentUpcoming = null;
       if (Array.isArray(evData)) {
-        setOngoingEvent(evData.find((e: any) => e.status === "ongoing") || null);
-        setUpcomingEvent(evData.find((e: any) => e.status === "upcoming") || null);
+        currentOngoing = evData.find((e: any) => e.status === "ongoing") || null;
+        currentUpcoming = evData.find((e: any) => e.status === "upcoming") || null;
+        setOngoingEvent(currentOngoing);
+        setUpcomingEvent(currentUpcoming);
       }
 
       // 2. Fetch Orders
       const ordRes = await fetch("/api/orders");
       const ordData = await ordRes.json();
+      let rev = 0;
+      let count = 0;
+      let unfulfilledPO: any[] = [];
+      let recent: any[] = [];
       if (Array.isArray(ordData)) {
         const todayStr = new Date().toISOString().split("T")[0];
         const activeOrders = ordData.filter((o: any) => !o.isVoided);
@@ -59,24 +83,42 @@ export default function DashboardPage() {
           return ordDate === todayStr;
         });
 
-        const rev = todayOrders.reduce((sum: number, o: any) => sum + o.totalAmount, 0);
+        rev = todayOrders.reduce((sum: number, o: any) => sum + o.totalAmount, 0);
+        count = todayOrders.length;
         setTodayRevenue(rev);
-        setTodayOrdersCount(todayOrders.length);
+        setTodayOrdersCount(count);
 
         // Filter PO yang belum selesai (pending, diproses, siap diambil)
-        const unfulfilledPO = activeOrders.filter(
+        unfulfilledPO = activeOrders.filter(
           (o: any) => o.orderSource === "PO" && o.status !== "selesai" && o.status !== "dibatalkan"
         );
+        recent = activeOrders.slice(0, 6);
         setPendingPO(unfulfilledPO.slice(0, 5));
-        setRecentOrders(activeOrders.slice(0, 6));
+        setRecentOrders(recent);
       }
 
       // 3. Fetch Stock
+      let lowStock: any[] = [];
       const stockRes = await fetch("/api/stock");
       const stockData = await stockRes.json();
       if (stockData.lowStockProducts) {
-        setLowStockProducts(stockData.lowStockProducts);
+        lowStock = stockData.lowStockProducts;
+        setLowStockProducts(lowStock);
       }
+
+      // Simpan ke cache untuk navigasi berikutnya
+      sessionStorage.setItem(
+        "dashboard_cache",
+        JSON.stringify({
+          ongoingEvent: currentOngoing,
+          upcomingEvent: currentUpcoming,
+          todayRevenue: rev,
+          todayOrdersCount: count,
+          pendingPO: unfulfilledPO.slice(0, 5),
+          recentOrders: recent,
+          lowStockProducts: lowStock,
+        })
+      );
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
     } finally {
