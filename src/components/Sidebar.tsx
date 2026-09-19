@@ -20,6 +20,7 @@ import {
   UserCheck,
   Sparkles,
   Lock,
+  Truck,
 } from "lucide-react";
 import CashierLoginModal from "./CashierLoginModal";
 
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { href: "/events", label: "Event / Bazaar", icon: CalendarDays },
   { href: "/products", label: "Produk & Kategori", icon: UtensilsCrossed },
   { href: "/stock", label: "Manajemen Stok", icon: Boxes },
+  { href: "/suppliers", label: "Master Supplier", icon: Truck },
   { href: "/customers", label: "Pelanggan PO", icon: Users },
   { href: "/vouchers", label: "Voucher & Diskon", icon: TicketPercent },
   { href: "/reports", label: "Riwayat & Laporan", icon: FileText },

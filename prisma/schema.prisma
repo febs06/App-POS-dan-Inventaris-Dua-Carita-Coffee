@@ -211,4 +211,57 @@ model ProductIngredient {
   @@unique([productId, rawMaterialId])
 }
 
+model Supplier {
+  id          String   @id @default(cuid())
+  code        String   @unique // SPL-001, SPL-002, dll
+  name        String
+  pic         String?  // Person In Charge
+  phone       String?  // WhatsApp
+  city        String?  @default("Bandung")
+  type        String   @default("Bahan Baku") // Bahan Baku, Packaging, Lainnya
+  mapsUrl     String?
+  status      String   @default("Aktif") // Aktif, Nonaktif
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items          SupplierItem[]
+  priceHistories SupplierPriceHistory[]
+}
+
+model SupplierItem {
+  id          String   @id @default(cuid())
+  supplierId  String
+  category    String   // Kopi, Syrup/Flavor, Creamer, Dairy/Susu, Powder, Operasional, Packaging
+  name        String
+  qty         Float    @default(1)
+  unit        String   // Kg, Pcs, L, Karton, Pack, Bal, Lembar
+  price       Float
+  priceDate   DateTime @default(now())
+  status      String   @default("Aktif")
+  notes       String?  // Catatan kemasan/grosir (misal: Per 12 Pcs, Per 100 Pcs, dll)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  supplier        Supplier               @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  priceHistories  SupplierPriceHistory[]
+}
+
+model SupplierPriceHistory {
+  id             String        @id @default(cuid())
+  supplierId     String
+  supplierItemId String?
+  itemName       String
+  qty            Float         @default(1)
+  unit           String
+  price          Float
+  priceDiff      Float?        @default(0)
+  date           DateTime      @default(now())
+  notes          String?       // "Harga Awal", "Kenaikan harga", dll
+  createdAt      DateTime      @default(now())
+
+  supplier       Supplier      @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierItem   SupplierItem? @relation(fields: [supplierItemId], references: [id], onDelete: SetNull)
+}
+
 
