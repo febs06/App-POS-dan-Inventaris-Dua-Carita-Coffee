@@ -21,6 +21,7 @@ import {
   Sparkles,
   Lock,
   Truck,
+  Wallet,
 } from "lucide-react";
 import CashierLoginModal from "./CashierLoginModal";
 
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/pos", label: "Kasir Direct (POS)", icon: ShoppingCart, highlight: true },
   { href: "/po", label: "Kelola Pre-Order (PO)", icon: Clock, highlight: true },
+  { href: "/finance", label: "Buku Kas & Keuangan", icon: Wallet, highlight: true },
   { href: "/events", label: "Event / Bazaar", icon: CalendarDays },
   { href: "/products", label: "Produk & Kategori", icon: UtensilsCrossed },
   { href: "/stock", label: "Manajemen Stok", icon: Boxes },

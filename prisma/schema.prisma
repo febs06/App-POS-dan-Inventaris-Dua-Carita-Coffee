@@ -264,4 +264,19 @@ model SupplierPriceHistory {
   supplierItem   SupplierItem? @relation(fields: [supplierItemId], references: [id], onDelete: SetNull)
 }
 
+model CashRecord {
+  id        String   @id @default(cuid())
+  seqNo     Int?     // No urut pencatatan
+  date      DateTime
+  name      String
+  type      String   // "MASUK" | "KELUAR"
+  category  String   // "PENJUALAN" | "BAHAN_BAKU" | "PACKAGING" | "OPERASIONAL" | "PINDAH_SALDO" | "MODAL" | "LAINNYA"
+  amount    Float
+  balance   Float
+  notes     String?
+  cashier   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 
