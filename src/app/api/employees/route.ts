@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
+import { hashPin } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -36,8 +35,9 @@ export async function POST(req: Request) {
       );
     }
 
+    const cleanUsername = username.toLowerCase().trim();
     const existing = await prisma.employee.findUnique({
-      where: { username },
+      where: { username: cleanUsername },
     });
 
     if (existing) {
@@ -47,11 +47,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const hashedPin = hashPin(String(pin).trim());
+
     const employee = await prisma.employee.create({
       data: {
-        name,
-        username: username.toLowerCase().trim(),
-        pin: String(pin).trim(),
+        name: name.trim(),
+        username: cleanUsername,
+        pinHash: hashedPin,
+        pin: null, // Do not store plaintext
         role: role || "KASIR",
         isActive: true,
       },
@@ -81,7 +84,7 @@ export async function PUT(req: Request) {
     }
 
     const updateData: any = {};
-    if (name !== undefined) updateData.name = name;
+    if (name !== undefined) updateData.name = name.trim();
     if (username !== undefined) {
       const cleanUsername = username.toLowerCase().trim();
       const existingUser = await prisma.employee.findUnique({
@@ -92,7 +95,10 @@ export async function PUT(req: Request) {
       }
       updateData.username = cleanUsername;
     }
-    if (pin !== undefined && pin.trim() !== "") updateData.pin = String(pin).trim();
+    if (pin !== undefined && pin.trim() !== "") {
+      updateData.pinHash = hashPin(String(pin).trim());
+      updateData.pin = null;
+    }
     if (role !== undefined) updateData.role = role;
     if (isActive !== undefined) updateData.isActive = isActive;
 

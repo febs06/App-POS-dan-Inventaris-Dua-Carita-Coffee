@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
+import { verifyPin, hashPin, createSessionToken } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
@@ -29,19 +28,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Akun karyawan ini sedang nonaktif" }, { status: 403 });
     }
 
-    if (employee.pin !== String(pin).trim()) {
+    // Verify PIN against pinHash or legacy plaintext pin
+    const isMatch = verifyPin(String(pin).trim(), employee.pinHash || employee.pin);
+    if (!isMatch) {
       return NextResponse.json({ error: "PIN yang Anda masukkan salah" }, { status: 401 });
     }
 
-    return NextResponse.json({
+    // Auto-migrate legacy plaintext PIN to pinHash if not yet migrated
+    if (!employee.pinHash && employee.pin) {
+      const newHash = hashPin(employee.pin);
+      await prisma.employee.update({
+        where: { id: employee.id },
+        data: { pinHash: newHash, pin: null },
+      });
+    }
+
+    const sessionUser = {
+      id: employee.id,
+      name: employee.name,
+      username: employee.username,
+      role: employee.role,
+    };
+
+    const token = createSessionToken(sessionUser);
+
+    const response = NextResponse.json({
       success: true,
-      employee: {
-        id: employee.id,
-        name: employee.name,
-        username: employee.username,
-        role: employee.role,
-      },
+      token,
+      employee: sessionUser,
     });
+
+    // Set secure HTTP-only cookie
+    response.cookies.set({
+      name: "session_token",
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: "/",
+    });
+
+    return response;
   } catch (error: any) {
     console.error("POST /api/employees/login error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

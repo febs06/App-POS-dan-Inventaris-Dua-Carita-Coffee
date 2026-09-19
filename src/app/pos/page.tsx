@@ -65,6 +65,8 @@ export default function PosPage() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "qris" | "transfer">("cash");
   const [cashGiven, setCashGiven] = useState<number>(0);
+  const [customerName, setCustomerName] = useState<string>("");
+  const [orderStatus, setOrderStatus] = useState<"selesai" | "diproses">("selesai");
   const [processingOrder, setProcessingOrder] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<any>(null);
 
@@ -275,14 +277,15 @@ export default function PosPage() {
         orderSource: "DIRECT",
         eventId: selectedEventId || null,
         cashierName,
+        customerName: customerName.trim() || null,
+        status: orderStatus,
         items: cart.map((item) => ({
           productId: item.product.id,
           qty: item.qty,
-          price: item.product.price,
           notes: item.notes || null,
         })),
-        voucherId: appliedVoucher ? appliedVoucher.id : null,
-        discountAmount,
+        voucherCode: appliedVoucher ? appliedVoucher.code : undefined,
+        manualDiscountAmount: discountType === "manual" ? discountAmount : 0,
         payment: {
           method: paymentMethod,
           amount: totalAmount,
@@ -302,9 +305,15 @@ export default function PosPage() {
       }
 
       const orderData = await res.json();
-      setCompletedOrder(orderData);
+      setCompletedOrder({
+        ...orderData,
+        cashGiven: paymentMethod === "cash" ? cashGiven : totalAmount,
+        changeAmount: paymentMethod === "cash" && cashGiven >= totalAmount ? cashGiven - totalAmount : 0,
+      });
       setIsCheckoutOpen(false);
       clearCart();
+      setCustomerName("");
+      setOrderStatus("selesai");
       // Reload products to refresh stock
       loadInitialData();
     } catch (err: any) {
@@ -709,6 +718,51 @@ export default function PosPage() {
             <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-center">
               <span className="text-xs text-amber-800 font-medium block">Total yang harus dibayar</span>
               <span className="text-2xl font-black text-amber-900">{formatRupiah(totalAmount)}</span>
+            </div>
+
+            {/* Input Nama Pelanggan Direct */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 flex justify-between">
+                <span>Nama Pelanggan</span>
+                <span className="text-[10px] text-slate-400 font-normal">Opsional</span>
+              </label>
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Contoh: Kak Dian / Meja 3 / Tamu"
+                className="w-full text-xs font-semibold px-3 py-2 rounded-xl bg-white border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900"
+              />
+            </div>
+
+            {/* Status Pesanan Selector */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 block">Status Pengerjaan Pesanan</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOrderStatus("selesai")}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    orderStatus === "selesai"
+                      ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
+                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>Langsung Selesai</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderStatus("diproses")}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    orderStatus === "diproses"
+                      ? "bg-amber-500 text-slate-950 border-amber-600 shadow-xs"
+                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  <span>⏳ Sedang Diproses (Antre)</span>
+                </button>
+              </div>
             </div>
 
             {/* Payment Method Selector */}

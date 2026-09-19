@@ -76,12 +76,29 @@ export default function ReportsPage() {
     }
   };
 
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    try {
+      const res = await fetch("/api/orders", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+      if (res.ok) {
+        loadReports();
+      }
+    } catch (err) {
+      console.error("Failed to update status:", err);
+    }
+  };
+
   // Filter Search
   const filteredOrders = orders.filter((o) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     const matchNo = o.orderNumber?.toLowerCase().includes(q);
-    const matchCust = o.customer?.name?.toLowerCase().includes(q);
+    const matchCust =
+      o.customer?.name?.toLowerCase().includes(q) ||
+      o.customerName?.toLowerCase().includes(q);
     const matchEvent = o.event?.name?.toLowerCase().includes(q);
     return matchNo || matchCust || matchEvent;
   });
@@ -331,15 +348,20 @@ export default function ReportsPage() {
                           {order.orderSource === "PO" ? (
                             <div>
                               <div className="font-semibold text-slate-900">
-                                {order.customer?.name || "Customer"}
+                                {order.customer?.name || order.customerName || "Customer PO"}
                               </div>
                               <div className="text-[10px] text-slate-500">
-                                {order.customer?.phoneNumber}
+                                {order.customer?.phoneNumber || "-"}
                               </div>
                             </div>
                           ) : (
-                            <div className="font-medium text-slate-700">
-                              {order.event?.name || "Kasir Booth"}
+                            <div>
+                              <div className="font-semibold text-slate-900">
+                                {order.customerName || "Pelanggan Umum"}
+                              </div>
+                              <div className="text-[10px] text-slate-500">
+                                {order.event?.name || "Booth Mandiri"}
+                              </div>
                             </div>
                           )}
                         </td>
@@ -373,6 +395,16 @@ export default function ReportsPage() {
 
                         <td className="py-3 px-3 text-right no-print">
                           <div className="flex items-center justify-end gap-1.5">
+                            {!isVoided && order.status === "diproses" && (
+                              <button
+                                onClick={() => handleUpdateStatus(order.id, "selesai")}
+                                className="px-2 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold text-[10px] rounded-md transition shadow-2xs"
+                                title="Tandai pesanan selesai dibuat/diserahkan"
+                              >
+                                ✓ Selesai
+                              </button>
+                            )}
+
                             <button
                               onClick={() => setSelectedReceiptOrder(order)}
                               className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"

@@ -88,6 +88,7 @@ model Order {
   orderSource    String      // PO, DIRECT
   eventId        String?
   customerId     String?
+  customerName   String?     // Nama pembeli (terutama pada pesanan Direct POS / non-kontak)
   status         String      @default("pending") // pending, diproses, siap diambil, selesai, dibatalkan
   pickupMethod   String?     // ambil di event, COD, ketemu langsung
   pickupDate     DateTime?
@@ -189,7 +190,8 @@ model Employee {
   id        String   @id @default(cuid())
   name      String
   username  String   @unique
-  pin       String   // 4-6 digit PIN
+  pin       String?  // Legacy 4-6 digit PIN (auto-migrated to pinHash)
+  pinHash   String?  // Salted PBKDF2/SHA-256 hash
   role      String   @default("KASIR") // OWNER, MANAGER, KASIR, BARISTA
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
