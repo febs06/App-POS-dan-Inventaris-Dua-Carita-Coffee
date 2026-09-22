@@ -19,6 +19,8 @@ import {
   Lock,
   Edit2,
   RefreshCw,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -52,6 +54,7 @@ export default function SettingsPage() {
   const [empPin, setEmpPin] = useState("");
   const [empRole, setEmpRole] = useState("KASIR");
   const [empActive, setEmpActive] = useState(true);
+  const [showEmpPin, setShowEmpPin] = useState(false);
   const [submittingEmp, setSubmittingEmp] = useState(false);
   const [empError, setEmpError] = useState("");
 
@@ -174,6 +177,7 @@ export default function SettingsPage() {
     setEmpName("");
     setEmpUsername("");
     setEmpPin("");
+    setShowEmpPin(false);
     setEmpRole("KASIR");
     setEmpActive(true);
     setEmpError("");
@@ -185,6 +189,7 @@ export default function SettingsPage() {
     setEmpName(emp.name);
     setEmpUsername(emp.username);
     setEmpPin(""); // Reset PIN to blank unless user wants to change
+    setShowEmpPin(false);
     setEmpRole(emp.role);
     setEmpActive(emp.isActive);
     setEmpError("");
@@ -199,6 +204,11 @@ export default function SettingsPage() {
     try {
       let res;
       if (editingEmployee) {
+        if (empPin && empPin.trim().length < 6) {
+          setEmpError("Password / PIN minimal 6 karakter (disarankan 8 karakter)");
+          setSubmittingEmp(false);
+          return;
+        }
         res = await fetch("/api/employees", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -206,14 +216,14 @@ export default function SettingsPage() {
             id: editingEmployee.id,
             name: empName,
             username: empUsername,
-            pin: empPin || undefined,
+            pin: empPin.trim() || undefined,
             role: empRole,
             isActive: empActive,
           }),
         });
       } else {
-        if (!empPin || empPin.length < 4) {
-          setEmpError("PIN staf minimal 4 digit angka");
+        if (!empPin || empPin.trim().length < 6) {
+          setEmpError("Password / PIN minimal 6 karakter (disarankan 8 karakter kombinasi huruf & angka)");
           setSubmittingEmp(false);
           return;
         }
@@ -223,7 +233,7 @@ export default function SettingsPage() {
           body: JSON.stringify({
             name: empName,
             username: empUsername,
-            pin: empPin,
+            pin: empPin.trim(),
             role: empRole,
           }),
         });
@@ -461,7 +471,7 @@ export default function SettingsPage() {
             <div>
               <h2 className="text-sm font-bold text-slate-900">Daftar Akun Staf & Hak Akses</h2>
               <p className="text-xs text-slate-500">
-                Staf dapat masuk ke sistem POS kasir menggunakan PIN 4-6 digit
+                Staf dapat masuk ke sistem POS kasir menggunakan Password / PIN (Min. 6-8 Karakter)
               </p>
             </div>
 
@@ -482,7 +492,7 @@ export default function SettingsPage() {
                   <th className="py-3.5 px-4">Nama Staf</th>
                   <th className="py-3.5 px-4">Username</th>
                   <th className="py-3.5 px-4">Role / Jabatan</th>
-                  <th className="py-3.5 px-4">Otorisasi PIN</th>
+                  <th className="py-3.5 px-4">Status Password</th>
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4 text-right">Aksi</th>
                 </tr>
@@ -628,16 +638,29 @@ export default function SettingsPage() {
 
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">
-                  {editingEmployee ? "Ganti PIN (Kosongkan bila tidak diubah)" : "PIN Kasir (4-6 Digit Angka)"}
+                  {editingEmployee ? "Ganti Password / PIN (Kosongkan bila tidak diubah)" : "Password / PIN Akses (Min. 6-8 Karakter)"}
                 </label>
-                <input
-                  type="password"
-                  maxLength={6}
-                  value={empPin}
-                  onChange={(e) => setEmpPin(e.target.value.replace(/\D/g, ""))}
-                  placeholder="Contoh: 1234"
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 font-mono text-slate-900 tracking-widest"
-                />
+                <div className="relative">
+                  <input
+                    type={showEmpPin ? "text" : "password"}
+                    maxLength={32}
+                    value={empPin}
+                    onChange={(e) => setEmpPin(e.target.value)}
+                    placeholder="Contoh: Febri889 / SandiUnik26"
+                    className="w-full text-xs p-2.5 pr-10 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 font-mono text-slate-900 tracking-wider"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEmpPin(!showEmpPin)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    title={showEmpPin ? "Sembunyikan" : "Tampilkan"}
+                  >
+                    {showEmpPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Mendukung kombinasi angka dan huruf untuk keamanan maksimal.
+                </p>
               </div>
 
               {editingEmployee && (

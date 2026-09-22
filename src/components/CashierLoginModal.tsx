@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserCheck, Shield, KeyRound, AlertCircle, X, Check, Lock } from "lucide-react";
+import { UserCheck, Shield, KeyRound, AlertCircle, X, Check, Lock, Eye, EyeOff } from "lucide-react";
 
 interface Employee {
   id: string;
@@ -21,6 +21,7 @@ export default function CashierLoginModal({ isOpen, onClose, onSuccess }: Cashie
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmp, setSelectedEmp] = useState<Employee | null>(null);
   const [pin, setPin] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -59,7 +60,7 @@ export default function CashierLoginModal({ isOpen, onClose, onSuccess }: Cashie
     } else if (val === "back") {
       setPin((prev) => prev.slice(0, -1));
     } else {
-      if (pin.length < 6) {
+      if (pin.length < 32) {
         setPin((prev) => prev + val);
       }
     }
@@ -176,28 +177,47 @@ export default function CashierLoginModal({ isOpen, onClose, onSuccess }: Cashie
             )}
           </div>
 
-          {/* PIN Input & Visual Dots */}
+          {/* Password Input & Eye Toggle */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold text-slate-600">PIN Otorisasi (4-6 Digit)</label>
-              <span className="text-[10px] text-slate-400 font-medium">Contoh default: 0000 / 1234</span>
+              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5 text-amber-500" />
+                <span>Password / PIN Akses</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-mono">
+                {pin.length > 0 ? `${pin.length} karakter` : "Min. 6-8 Karakter"}
+              </span>
             </div>
 
-            <div className="flex items-center justify-center gap-3 py-3 bg-slate-50 rounded-2xl border border-slate-200">
-              {[0, 1, 2, 3].map((idx) => (
-                <div
-                  key={idx}
-                  className={`h-4 w-4 rounded-full border transition-all ${
-                    pin.length > idx
-                      ? "bg-amber-500 border-amber-600 scale-110 shadow-xs"
-                      : "bg-white border-slate-300"
-                  }`}
-                />
-              ))}
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={pin}
+                onChange={(e) => {
+                  setError("");
+                  setPin(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && pin.length >= 4 && selectedEmp && !loading) {
+                    handleLogin();
+                  }
+                }}
+                placeholder="Ketik password atau gunakan tombol..."
+                autoFocus
+                className="w-full text-center text-base sm:text-lg font-mono tracking-wider py-2.5 px-9 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all shadow-inner"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                title={showPassword ? "Sembunyikan" : "Tampilkan"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
 
             {error && (
-              <div className="mt-2 flex items-center gap-1.5 text-xs text-rose-600 font-semibold bg-rose-50 p-2 rounded-lg border border-rose-200">
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-rose-600 font-semibold bg-rose-50 p-2 rounded-xl border border-rose-200 animate-in fade-in">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>{error}</span>
               </div>

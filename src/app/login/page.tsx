@@ -14,6 +14,9 @@ import {
   CheckCircle2,
   ChevronRight,
   ShieldCheck,
+  Eye,
+  EyeOff,
+  Lock,
 } from "lucide-react";
 
 interface Employee {
@@ -41,6 +44,7 @@ export default function LoginPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmp, setSelectedEmp] = useState<Employee | null>(null);
   const [pin, setPin] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -150,7 +154,7 @@ export default function LoginPage() {
     } else if (val === "back") {
       setPin((prev) => prev.slice(0, -1));
     } else {
-      if (pin.length < 6) {
+      if (pin.length < 32) {
         setPin((prev) => prev + val);
       }
     }
@@ -435,28 +439,43 @@ export default function LoginPage() {
                 )}
               </div>
 
-              {/* PIN Visual Dots */}
-              <div className="my-4 sm:my-5">
-                <div className="text-center mb-2.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Masukkan PIN Kasir (4 - 6 Digit)
+              {/* Password Input Field with Eye Toggle */}
+              <div className="my-4 sm:my-5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <Lock className="h-3.5 w-3.5 text-amber-400" />
+                    <span>Password / PIN Akses</span>
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-mono">
+                    {pin.length > 0 ? `${pin.length} karakter` : "Min. 6-8 Karakter"}
                   </span>
                 </div>
 
-                <div className="flex items-center justify-center gap-3 py-3 sm:py-3.5 bg-slate-950/80 rounded-2xl border border-slate-800">
-                  {[0, 1, 2, 3, 4, 5].map((idx) => {
-                    const isFilled = pin.length > idx;
-                    return (
-                      <div
-                        key={idx}
-                        className={`h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border transition-all duration-150 ${
-                          isFilled
-                            ? "bg-amber-500 border-amber-400 scale-125 shadow-md shadow-amber-500/40"
-                            : "bg-slate-800 border-slate-700"
-                        }`}
-                      />
-                    );
-                  })}
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={pin}
+                    onChange={(e) => {
+                      setError("");
+                      setPin(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && pin.length >= 4 && selectedEmp && !loading) {
+                        submitLogin(selectedEmp, pin);
+                      }
+                    }}
+                    placeholder="Ketik password atau gunakan tombol..."
+                    autoFocus
+                    className="w-full text-center text-lg sm:text-xl font-mono tracking-wider py-3 px-10 rounded-2xl bg-slate-950/80 border border-slate-800 text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all shadow-inner"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition p-1 cursor-pointer"
+                    title={showPassword ? "Sembunyikan" : "Tampilkan"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
 
                 {/* Error Banner */}
@@ -468,14 +487,14 @@ export default function LoginPage() {
                 )}
               </div>
 
-              {/* Keypad Buttons (3x4 grid) */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-3 max-w-sm mx-auto">
+              {/* Keypad Buttons (3x4 grid) for quick touch / numeric entry */}
+              <div className="grid grid-cols-3 gap-2 sm:gap-2.5 max-w-sm mx-auto">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
                   <button
                     key={num}
                     type="button"
                     onClick={() => handleKeypadPress(num)}
-                    className="h-12 sm:h-15 rounded-2xl bg-slate-800/80 hover:bg-slate-700 active:bg-amber-500 active:text-slate-950 border border-slate-700/60 text-white font-black text-xl sm:text-2xl transition-all flex items-center justify-center cursor-pointer shadow-xs active:scale-95"
+                    className="h-11 sm:h-13 rounded-2xl bg-slate-800/80 hover:bg-slate-700 active:bg-amber-500 active:text-slate-950 border border-slate-700/60 text-white font-black text-xl sm:text-2xl transition-all flex items-center justify-center cursor-pointer shadow-xs active:scale-95"
                   >
                     {num}
                   </button>
@@ -485,7 +504,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => handleKeypadPress("clear")}
-                  className="h-12 sm:h-15 rounded-2xl bg-slate-800/40 hover:bg-rose-950/40 hover:text-rose-400 border border-slate-700/40 text-slate-400 font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                  className="h-11 sm:h-13 rounded-2xl bg-slate-800/40 hover:bg-rose-950/40 hover:text-rose-400 border border-slate-700/40 text-slate-400 font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer active:scale-95"
                 >
                   Reset
                 </button>
@@ -494,7 +513,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => handleKeypadPress("0")}
-                  className="h-12 sm:h-15 rounded-2xl bg-slate-800/80 hover:bg-slate-700 active:bg-amber-500 active:text-slate-950 border border-slate-700/60 text-white font-black text-xl sm:text-2xl transition-all flex items-center justify-center cursor-pointer shadow-xs active:scale-95"
+                  className="h-11 sm:h-13 rounded-2xl bg-slate-800/80 hover:bg-slate-700 active:bg-amber-500 active:text-slate-950 border border-slate-700/60 text-white font-black text-xl sm:text-2xl transition-all flex items-center justify-center cursor-pointer shadow-xs active:scale-95"
                 >
                   0
                 </button>
@@ -503,7 +522,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => handleKeypadPress("back")}
-                  className="h-12 sm:h-15 rounded-2xl bg-slate-800/40 hover:bg-slate-700 border border-slate-700/40 text-slate-300 font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                  className="h-11 sm:h-13 rounded-2xl bg-slate-800/40 hover:bg-slate-700 border border-slate-700/40 text-slate-300 font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer active:scale-95"
                 >
                   Hapus
                 </button>

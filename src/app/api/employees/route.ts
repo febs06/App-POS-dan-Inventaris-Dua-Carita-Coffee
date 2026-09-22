@@ -47,7 +47,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const hashedPin = hashPin(String(pin).trim());
+    const cleanPin = String(pin).trim();
+    if (cleanPin.length < 6) {
+      return NextResponse.json(
+        { error: "Password / PIN minimal 6 karakter (disarankan 8 karakter kombinasi huruf & angka)" },
+        { status: 400 }
+      );
+    }
+
+    if (/^(\d)\1+$/.test(cleanPin) || ["123456", "654321", "12345678", "password"].includes(cleanPin.toLowerCase())) {
+      return NextResponse.json(
+        { error: "Password terlalu sederhana. Gunakan kombinasi huruf dan angka yang unik" },
+        { status: 400 }
+      );
+    }
+
+    const hashedPin = hashPin(cleanPin);
 
     const employee = await prisma.employee.create({
       data: {
@@ -96,7 +111,20 @@ export async function PUT(req: Request) {
       updateData.username = cleanUsername;
     }
     if (pin !== undefined && pin.trim() !== "") {
-      updateData.pinHash = hashPin(String(pin).trim());
+      const cleanPin = String(pin).trim();
+      if (cleanPin.length < 6) {
+        return NextResponse.json(
+          { error: "Password / PIN minimal 6 karakter (disarankan 8 karakter kombinasi huruf & angka)" },
+          { status: 400 }
+        );
+      }
+      if (/^(\d)\1+$/.test(cleanPin) || ["123456", "654321", "12345678", "password"].includes(cleanPin.toLowerCase())) {
+        return NextResponse.json(
+          { error: "Password terlalu sederhana. Gunakan kombinasi huruf dan angka yang unik" },
+          { status: 400 }
+        );
+      }
+      updateData.pinHash = hashPin(cleanPin);
       updateData.pin = null;
     }
     if (role !== undefined) updateData.role = role;
