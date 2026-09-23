@@ -160,16 +160,17 @@ model StoreSetting {
 }
 
 model RawMaterial {
-  id          String   @id @default(cuid())
-  name        String
-  category    String   @default("Bahan Minuman") // Bahan Minuman, Sirup & Flavour, Kemasan, Topping, Lainnya
-  stock       Float    @default(0)
-  unit        String   @default("gram") // gram, ml, pcs, kg, liter, botol, pack
-  minStock    Float    @default(10)
-  costPerUnit Float    @default(0)
-  supplier    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String   @id @default(cuid())
+  name              String
+  category          String   @default("Bahan Minuman") // Bahan Minuman, Sirup & Flavour, Kemasan, Topping, Lainnya
+  stock             Float    @default(0)
+  unit              String   @default("gram") // gram, ml, pcs, kg, liter, botol, pack
+  minStock          Float    @default(10)
+  costPerUnit       Float    @default(0) // HPP per satuan (Weighted Moving Average)
+  lastPurchasePrice Float?   // Harga beli satuan terakhir dari supplier
+  supplier          String?  // Nama vendor / supplier utama atau terakhir
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   logs               RawMaterialLog[]
   opnames            StockOpname[]
@@ -177,14 +178,20 @@ model RawMaterial {
 }
 
 model RawMaterialLog {
-  id            String      @id @default(cuid())
-  rawMaterialId String
-  changeQty     Float       // Positif masuk/restock, negatif keluar/pemakaian
-  type          String      // restock, pemakaian, rusak, koreksi
-  notes         String?
-  createdAt     DateTime    @default(now())
+  id               String      @id @default(cuid())
+  rawMaterialId    String
+  changeQty        Float       // Positif masuk/restock, negatif keluar/pemakaian
+  type             String      // restock, pemakaian, rusak, koreksi
+  purchasePrice    Float?      // Harga beli per satuan saat restok
+  totalCost        Float?      // Total nominal biaya pembelian = changeQty * purchasePrice
+  supplierName     String?     // Nama vendor / supplier saat transaksi restok
+  prevCostPerUnit  Float?      // HPP atau harga beli sebelumnya untuk tracking fluktuasi
+  priceDiff        Float?      // Selisih harga: purchasePrice - prevCostPerUnit
+  priceDiffPercent Float?      // Persentase kenaikan/penurunan harga (%)
+  notes            String?
+  createdAt        DateTime    @default(now())
 
-  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id], onDelete: Cascade)
+  rawMaterial      RawMaterial @relation(fields: [rawMaterialId], references: [id], onDelete: Cascade)
 }
 
 model StockOpname {

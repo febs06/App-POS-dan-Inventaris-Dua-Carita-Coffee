@@ -26,13 +26,20 @@ import {
   ClipboardCheck,
   Calculator,
   History,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Building2,
+  HelpCircle,
+  Info,
+  Percent,
 } from "lucide-react";
 
 export default function StockManagementPage() {
   const [activeTab, setActiveTab] = useState<"raw_materials" | "stock_opname" | "products">("raw_materials");
 
   // ==========================================
-  // 1. STATE INVENTORY BAHAN BAKU
+  // 1. STATE INVENTORY BAHAN BAKU & VENDOR PRICING
   // ==========================================
   const [rawMaterialsData, setRawMaterialsData] = useState<{
     materials: any[];
@@ -48,6 +55,19 @@ export default function StockManagementPage() {
   const [rawLogs, setRawLogs] = useState<any[]>([]);
   const [loadingRaw, setLoadingRaw] = useState(false);
   const [rawSearchQuery, setRawSearchQuery] = useState("");
+
+  // Suppliers & Price Fluctuation state
+  const [suppliersList, setSuppliersList] = useState<any[]>([]);
+  const [restockSupplier, setRestockSupplier] = useState("");
+  const [restockPurchasePrice, setRestockPurchasePrice] = useState("");
+  const [restockCostMethod, setRestockCostMethod] = useState<"average" | "latest">("average");
+  const [restockRecordCash, setRestockRecordCash] = useState(false);
+
+  // Price History Modal state
+  const [isPriceHistoryOpen, setIsPriceHistoryOpen] = useState(false);
+  const [selectedRawForPriceHistory, setSelectedRawForPriceHistory] = useState<any | null>(null);
+  const [priceHistories, setPriceHistories] = useState<any[]>([]);
+  const [loadingPriceHistory, setLoadingPriceHistory] = useState(false);
 
   // Form Inline "Input Bahan Baru"
   const [newRawName, setNewRawName] = useState("");
@@ -120,7 +140,20 @@ export default function StockManagementPage() {
   useEffect(() => {
     loadRawMaterials();
     loadEvents();
+    loadSuppliers();
   }, []);
+
+  const loadSuppliers = async () => {
+    try {
+      const res = await fetch("/api/suppliers");
+      const data = await res.json();
+      if (data && Array.isArray(data.suppliers)) {
+        setSuppliersList(data.suppliers);
+      }
+    } catch (err) {
+      console.error("Gagal memuat suppliers:", err);
+    }
+  };
 
   useEffect(() => {
     if (activeTab === "products") {
@@ -257,13 +290,22 @@ export default function StockManagementPage() {
   };
 
   // ==========================================
-  // HANDLERS: MODAL RESTOK BAHAN
+  // HANDLERS: MODAL RESTOK BAHAN & HARGA VENDOR
   // ==========================================
   const openRestockModal = async (material: any) => {
     setSelectedRawForRestock(material);
     setRestockRawQty("10");
     setRestockRawDate(new Date().toISOString().split("T")[0]);
     setRestockRawNotes("");
+    setRestockSupplier(material.supplier || "");
+    const initialPrice = material.lastPurchasePrice
+      ? String(material.lastPurchasePrice)
+      : material.costPerUnit > 0
+      ? String(material.costPerUnit)
+      : "";
+    setRestockPurchasePrice(initialPrice);
+    setRestockCostMethod("average");
+    setRestockRecordCash(false);
     setIsRestockRawOpen(true);
     setLoadingRestockHistory(true);
 
@@ -291,6 +333,7 @@ export default function StockManagementPage() {
 
     setSubmittingRestockRaw(true);
     try {
+      const priceVal = restockPurchasePrice ? parseFloat(restockPurchasePrice) : undefined;
       const res = await fetch("/api/raw-materials/mutate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -300,6 +343,10 @@ export default function StockManagementPage() {
           type: "restock",
           notes: restockRawNotes.trim() || `Restok ${selectedRawForRestock.name}`,
           date: restockRawDate,
+          purchasePrice: priceVal,
+          supplierName: restockSupplier.trim() || undefined,
+          costMethod: restockCostMethod,
+          recordCashExpense: restockRecordCash,
         }),
       });
 
@@ -313,17 +360,29 @@ export default function StockManagementPage() {
       loadRawMaterials();
       loadRawLogs();
 
-      // Refresh riwayat modal
-      const histRes = await fetch(`/api/raw-materials/mutate?rawMaterialId=${selectedRawForRestock.id}&type=restock&limit=15`);
-      const histData = await histRes.json();
-      if (Array.isArray(histData)) setRawRestockHistory(histData);
-
       alert(`Restok ${selectedRawForRestock.name} sebanyak ${qty} ${selectedRawForRestock.unit} berhasil disimpan!`);
       setIsRestockRawOpen(false);
     } catch {
       alert("Gagal menghubungi server");
     } finally {
       setSubmittingRestockRaw(false);
+    }
+  };
+
+  // Open dedicated vendor price fluctuation history modal
+  const openPriceHistoryModal = async (material: any) => {
+    setSelectedRawForPriceHistory(material);
+    setIsPriceHistoryOpen(true);
+    setLoadingPriceHistory(true);
+    try {
+      const res = await fetch(`/api/raw-materials/mutate?rawMaterialId=${material.id}&type=restock&limit=50`);
+      const data = await res.json();
+      if (Array.isArray(data)) setPriceHistories(data);
+      else setPriceHistories([]);
+    } catch {
+      setPriceHistories([]);
+    } finally {
+      setLoadingPriceHistory(false);
     }
   };
 
@@ -739,36 +798,44 @@ export default function StockManagementPage() {
                     <th className="py-3.5 px-4">Nama Bahan</th>
                     <th className="py-3.5 px-4">Jumlah (Stok)</th>
                     <th className="py-3.5 px-4">Satuan</th>
-                    <th className="py-3.5 px-4">Keterangan</th>
+                    <th className="py-3.5 px-4">HPP Satuan</th>
+                    <th className="py-3.5 px-4">Harga Beli Terakhir</th>
+                    <th className="py-3.5 px-4">Vendor / Supplier</th>
                     <th className="py-3.5 px-4 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loadingRaw ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400">
+                      <td colSpan={8} className="py-12 text-center text-slate-400">
                         Memuat data inventory bahan baku...
                       </td>
                     </tr>
                   ) : rawMaterialsData.materials.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400">
+                      <td colSpan={8} className="py-12 text-center text-slate-400">
                         Belum ada bahan baku terdaftar. Silakan masukkan bahan baru di formulir atas.
                       </td>
                     </tr>
                   ) : (
                     rawMaterialsData.materials.map((m, idx) => {
                       const isLow = m.stock <= m.minStock;
+                      const hasLastPrice = m.lastPurchasePrice !== null && m.lastPurchasePrice !== undefined && m.lastPurchasePrice > 0;
                       return (
                         <tr key={m.id} className="hover:bg-slate-50/70 transition">
                           <td className="py-3.5 px-4 text-slate-400 text-center font-mono">{idx + 1}</td>
                           <td className="py-3.5 px-4 font-bold text-slate-900">
                             <div>{m.name}</div>
-                            {isLow && (
-                              <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-100 text-rose-800">
-                                Stok Menipis (Batas: {m.minStock} {m.unit})
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[10px] font-normal text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                {m.category || "Bahan Minuman"}
                               </span>
-                            )}
+                              {isLow && (
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-800">
+                                  Stok Menipis (Batas: {m.minStock} {m.unit})
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3.5 px-4">
                             <span className={`font-black text-sm ${isLow ? "text-rose-600" : "text-slate-900"}`}>
@@ -776,7 +843,30 @@ export default function StockManagementPage() {
                             </span>
                           </td>
                           <td className="py-3.5 px-4 text-slate-600 font-semibold">{m.unit}</td>
-                          <td className="py-3.5 px-4 text-slate-500">{m.supplier || "-"}</td>
+                          <td className="py-3.5 px-4 font-semibold text-slate-800">
+                            {m.costPerUnit > 0 ? (
+                              <span className="text-emerald-700 font-bold">{formatRupiah(m.costPerUnit)}</span>
+                            ) : (
+                              <span className="text-slate-400 font-normal">Belum dihitung</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 font-semibold text-slate-800">
+                            {hasLastPrice ? (
+                              <span className="text-amber-800 font-bold">{formatRupiah(m.lastPurchasePrice)}</span>
+                            ) : (
+                              <span className="text-slate-400 font-normal">-</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-600">
+                            {m.supplier ? (
+                              <div className="flex items-center gap-1 font-medium">
+                                <Building2 className="h-3 w-3 text-slate-400" />
+                                <span>{m.supplier}</span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
                           <td className="py-3.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
                               {/* 1. Tombol Tambah Stok / Restock (+) */}
@@ -789,7 +879,17 @@ export default function StockManagementPage() {
                                 <Plus className="h-4 w-4" />
                               </button>
 
-                              {/* 2. Tombol Edit (Pensil) */}
+                              {/* 2. Tombol Riwayat Fluktuasi Harga (TrendingUp) */}
+                              <button
+                                type="button"
+                                onClick={() => openPriceHistoryModal(m)}
+                                className="h-8 w-8 rounded-xl border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100 text-indigo-700 flex items-center justify-center transition cursor-pointer"
+                                title="Lihat Riwayat Fluktuasi Harga Vendor"
+                              >
+                                <TrendingUp className="h-3.5 w-3.5" />
+                              </button>
+
+                              {/* 3. Tombol Edit (Pensil) */}
                               <button
                                 type="button"
                                 onClick={() => openEditModal(m)}
@@ -799,7 +899,7 @@ export default function StockManagementPage() {
                                 <Edit2 className="h-3.5 w-3.5" />
                               </button>
 
-                              {/* 3. Tombol Hapus (Tempat Sampah) */}
+                              {/* 4. Tombol Hapus (Tempat Sampah) */}
                               <button
                                 type="button"
                                 onClick={() => handleDeleteRaw(m.id, m.name)}
@@ -1145,147 +1245,577 @@ export default function StockManagementPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL RESTOK BAHAN (SESUAI PROMPT ITEM #1) */}
+      {/* MODAL RESTOK BAHAN DENGAN FITUR FLUKTUASI HARGA VENDOR & HPP */}
       {/* ========================================================================= */}
-      {isRestockRawOpen && selectedRawForRestock && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold">
-                  <Plus className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-900">Restok Bahan</h3>
-                  <p className="text-[11px] text-slate-500">Tambah stok bahan baku yang dibeli atau masuk</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsRestockRawOpen(false)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+      {isRestockRawOpen && selectedRawForRestock && (() => {
+        const prevPrice = selectedRawForRestock.lastPurchasePrice || (selectedRawForRestock.costPerUnit > 0 ? selectedRawForRestock.costPerUnit : 0);
+        const currentEnteredPrice = parseFloat(restockPurchasePrice) || 0;
+        const enteredQty = parseFloat(restockRawQty) || 0;
+        const currentStock = Math.max(0, selectedRawForRestock.stock);
+        const totalStockAfter = currentStock + enteredQty;
 
-            <div className="p-6 overflow-y-auto space-y-5">
-              <form onSubmit={handleSaveRestock} className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-600 block mb-1">Nama Bahan</label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={selectedRawForRestock.name}
-                    className="w-full text-xs font-bold p-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 cursor-not-allowed"
-                  />
-                </div>
+        const priceDiff = currentEnteredPrice > 0 && prevPrice > 0 ? currentEnteredPrice - prevPrice : 0;
+        const priceDiffPercent = prevPrice > 0 ? ((currentEnteredPrice - prevPrice) / prevPrice) * 100 : 0;
+        const totalRestockCost = Math.round(enteredQty * currentEnteredPrice);
 
-                <div className="grid grid-cols-2 gap-3">
+        const simulatedWAC = totalStockAfter > 0
+          ? Math.round(((currentStock * (selectedRawForRestock.costPerUnit || prevPrice)) + (enteredQty * currentEnteredPrice)) / totalStockAfter)
+          : currentEnteredPrice;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full overflow-hidden flex flex-col max-h-[92vh]">
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shadow-xs">
+                    <PackagePlus className="h-5 w-5" />
+                  </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Jumlah Restok <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="relative">
+                    <h3 className="text-base font-black text-slate-900 leading-tight">
+                      Restok Bahan & Update Harga
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Catat pembelian vendor, pantau kenaikan harga & sesuaikan HPP
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsRestockRawOpen(false)}
+                  className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1">
+                <form onSubmit={handleSaveRestock} className="space-y-4">
+                  {/* Bahan Info Card */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nama Bahan Baku</div>
+                      <div className="text-sm font-black text-slate-900">{selectedRawForRestock.name}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        Kategori: <span className="font-semibold text-slate-700">{selectedRawForRestock.category || "Bahan Minuman"}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Stok Saat Ini</div>
+                      <div className="text-sm font-black text-amber-700">
+                        {selectedRawForRestock.stock} <span className="text-xs font-semibold text-slate-600">{selectedRawForRestock.unit}</span>
+                      </div>
+                      <div className="text-xs text-emerald-700 font-semibold mt-0.5">
+                        HPP: {selectedRawForRestock.costPerUnit > 0 ? formatRupiah(selectedRawForRestock.costPerUnit) : "-"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Vendor / Supplier Input */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5 text-amber-600" />
+                        <span>Vendor / Supplier Pembelian</span>
+                      </label>
+                      <span className="text-[11px] text-slate-400 font-normal">Pilih atau ketik vendor</span>
+                    </div>
+                    <input
+                      list="supplier-options"
+                      type="text"
+                      value={restockSupplier}
+                      onChange={(e) => setRestockSupplier(e.target.value)}
+                      placeholder="Contoh: CV Kopi Prima / Toko Susu Lembang"
+                      className="w-full text-xs font-semibold p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
+                    />
+                    <datalist id="supplier-options">
+                      {suppliersList.map((s) => (
+                        <option key={s.id} value={s.name}>
+                          {s.code} - {s.name} {s.city ? `(${s.city})` : ""}
+                        </option>
+                      ))}
+                    </datalist>
+                  </div>
+
+                  {/* Jumlah & Satuan */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">
+                        Jumlah Restok <span className="text-rose-500">*</span>
+                      </label>
                       <input
                         type="number"
                         step="any"
-                        min="0.1"
+                        min="0.01"
                         required
                         value={restockRawQty}
                         onChange={(e) => setRestockRawQty(e.target.value)}
-                        placeholder="Contoh: 500"
+                        placeholder="Contoh: 10"
                         className="w-full text-xs font-black p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 block mb-1">Satuan</label>
+                      <input
+                        type="text"
+                        readOnly
+                        value={selectedRawForRestock.unit}
+                        className="w-full text-xs font-bold p-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 cursor-not-allowed"
                       />
                     </div>
                   </div>
 
+                  {/* Harga Beli Satuan & Deteksi Fluktuasi */}
                   <div>
-                    <label className="text-xs font-bold text-slate-600 block mb-1">Satuan</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={selectedRawForRestock.unit}
-                      className="w-full text-xs font-bold p-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 cursor-not-allowed"
-                    />
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>Harga Beli Satuan (Rp) per {selectedRawForRestock.unit}</span>
+                      </label>
+                      {prevPrice > 0 && (
+                        <span className="text-[11px] font-semibold text-slate-500">
+                          Harga Terakhir: <strong className="text-slate-800">{formatRupiah(prevPrice)}</strong>
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        value={restockPurchasePrice}
+                        onChange={(e) => setRestockPurchasePrice(e.target.value)}
+                        placeholder={prevPrice > 0 ? String(prevPrice) : "Masukkan harga beli dari vendor"}
+                        className="w-full text-xs font-black p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+
+                    {/* Indikator Real-time Fluktuasi Harga (Naik / Turun / Stabil) */}
+                    {currentEnteredPrice > 0 && prevPrice > 0 && (
+                      <div className="mt-2">
+                        {priceDiff > 0 ? (
+                          <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
+                            <TrendingUp className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                            <div>
+                              <div className="font-bold">
+                                🔴 Harga Beli Naik +{formatRupiah(priceDiff)} (+{priceDiffPercent.toFixed(1)}%)
+                              </div>
+                              <p className="text-[11px] text-rose-700 mt-0.5">
+                                Harga vendor lebih mahal dari sebelumnya. Sistem akan menghitung HPP rata-rata baru di bawah agar biaya produksi akurat.
+                              </p>
+                            </div>
+                          </div>
+                        ) : priceDiff < 0 ? (
+                          <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2">
+                            <TrendingDown className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                            <div>
+                              <div className="font-bold">
+                                🟢 Harga Beli Turun -{formatRupiah(Math.abs(priceDiff))} ({priceDiffPercent.toFixed(1)}%)
+                              </div>
+                              <p className="text-[11px] text-emerald-700 mt-0.5">
+                                Lebih hemat! Pembelian ini menurunkan rata-rata biaya bahan baku dan menaikkan margin laba penjualan.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-xs flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-slate-400"></span>
+                            <span className="font-semibold">⚪ Harga Stabil (Sama dengan harga pembelian sebelumnya).</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Tanggal Restok</label>
-                  <input
-                    type="date"
-                    required
-                    value={restockRawDate}
-                    onChange={(e) => setRestockRawDate(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500 font-medium"
-                  />
-                </div>
+                  {/* Pilihan Metode Kalkulasi HPP (Solusi Fluktuasi Harga) */}
+                  {currentEnteredPrice > 0 && (
+                    <div className="p-3.5 rounded-2xl border border-amber-200/90 bg-amber-50/40 space-y-2.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
+                        <Calculator className="h-4 w-4 text-amber-600" />
+                        <span>Metode Penentuan HPP (Harga Pokok Bahan)</span>
+                      </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Catatan / Supplier (Opsional)</label>
-                  <input
-                    type="text"
-                    value={restockRawNotes}
-                    onChange={(e) => setRestockRawNotes(e.target.value)}
-                    placeholder="Contoh: Pembelian grosir toko ABC"
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
+                      <div className="space-y-2">
+                        {/* Option 1: Weighted Moving Average Cost */}
+                        <label
+                          className={`flex items-start gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition ${
+                            restockCostMethod === "average"
+                              ? "bg-white border-amber-500 shadow-xs"
+                              : "bg-transparent border-slate-200 hover:bg-white"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="costMethod"
+                            value="average"
+                            checked={restockCostMethod === "average"}
+                            onChange={() => setRestockCostMethod("average")}
+                            className="mt-0.5 text-amber-600 focus:ring-amber-500"
+                          />
+                          <div className="flex-1">
+                            <div className="font-bold text-slate-900 flex items-center justify-between">
+                              <span>Rata-Rata Bergerak (Weighted Average)</span>
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold">
+                                Direkomendasikan
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
+                              Menggabungkan sisa stok lama ({currentStock} {selectedRawForRestock.unit} @ {formatRupiah(selectedRawForRestock.costPerUnit || prevPrice)}) dengan stok baru ({enteredQty} {selectedRawForRestock.unit} @ {formatRupiah(currentEnteredPrice)}).
+                            </p>
+                            <div className="text-xs font-black text-emerald-700 mt-1">
+                              ➔ HPP Baru Menjadi: {formatRupiah(simulatedWAC)} / {selectedRawForRestock.unit}
+                            </div>
+                          </div>
+                        </label>
 
-                <div className="pt-2 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={submittingRestockRaw}
-                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md transition cursor-pointer disabled:bg-slate-300"
-                  >
-                    {submittingRestockRaw ? "Menyimpan..." : "Simpan Restok"}
-                  </button>
-                </div>
-              </form>
+                        {/* Option 2: Latest Price */}
+                        <label
+                          className={`flex items-start gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition ${
+                            restockCostMethod === "latest"
+                              ? "bg-white border-amber-500 shadow-xs"
+                              : "bg-transparent border-slate-200 hover:bg-white"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="costMethod"
+                            value="latest"
+                            checked={restockCostMethod === "latest"}
+                            onChange={() => setRestockCostMethod("latest")}
+                            className="mt-0.5 text-amber-600 focus:ring-amber-500"
+                          />
+                          <div className="flex-1">
+                            <div className="font-bold text-slate-900">Gunakan Harga Pembelian Terakhir (Latest Price)</div>
+                            <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
+                              Langsung mengganti HPP bahan baku mengikuti harga beli terbaru dari vendor.
+                            </p>
+                            <div className="text-xs font-black text-amber-700 mt-1">
+                              ➔ HPP Baru Menjadi: {formatRupiah(currentEnteredPrice)} / {selectedRawForRestock.unit}
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Panel Riwayat Restok Bahan Baku ini */}
-              <div className="pt-3 border-t border-slate-200 space-y-2">
-                <div className="flex items-center gap-1.5 text-xs font-black text-slate-900">
-                  <History className="h-3.5 w-3.5 text-amber-500" />
-                  <span>Riwayat Restok ({selectedRawForRestock.name})</span>
-                </div>
+                  {/* Tanggal & Catatan */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">Tanggal Pembelian / Restok</label>
+                      <input
+                        type="date"
+                        required
+                        value={restockRawDate}
+                        onChange={(e) => setRestockRawDate(e.target.value)}
+                        className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500 font-medium"
+                      />
+                    </div>
 
-                {loadingRestockHistory ? (
-                  <div className="text-xs text-slate-400 py-4 text-center">Memuat riwayat...</div>
-                ) : rawRestockHistory.length === 0 ? (
-                  <div className="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-xl border border-slate-100">
-                    Belum ada riwayat restok.
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">No Faktur / Catatan (Opsional)</label>
+                      <input
+                        type="text"
+                        value={restockRawNotes}
+                        onChange={(e) => setRestockRawNotes(e.target.value)}
+                        placeholder="Contoh: Nota #INV-8890, promo grosir"
+                        className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
                   </div>
-                ) : (
-                  <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-xl overflow-hidden">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-                        <tr>
-                          <th className="py-2 px-3 w-10 text-center">No</th>
-                          <th className="py-2 px-3">Tanggal</th>
-                          <th className="py-2 px-3 text-right">Jumlah</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 font-mono">
-                        {rawRestockHistory.map((item, idx) => (
-                          <tr key={item.id} className="hover:bg-slate-50">
-                            <td className="py-2 px-3 text-slate-400 text-center">{idx + 1}</td>
-                            <td className="py-2 px-3 text-slate-600 font-sans">{formatDate(item.createdAt)}</td>
-                            <td className="py-2 px-3 text-right font-bold text-emerald-600 font-sans">
-                              +{item.changeQty} {selectedRawForRestock.unit}
-                            </td>
+
+                  {/* Total Belanja & Checkbox Catat ke Kas */}
+                  {totalRestockCost > 0 && (
+                    <div className="p-3.5 rounded-2xl bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                      <div>
+                        <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Total Biaya Belanja Restok</div>
+                        <div className="text-lg font-black text-amber-400">{formatRupiah(totalRestockCost)}</div>
+                      </div>
+                      <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-200 hover:text-white">
+                        <input
+                          type="checkbox"
+                          checked={restockRecordCash}
+                          onChange={(e) => setRestockRecordCash(e.target.checked)}
+                          className="h-4 w-4 rounded border-slate-600 text-amber-500 focus:ring-amber-500"
+                        />
+                        <span>Catat otomatis ke Buku Kas (Pengeluaran)</span>
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Tombol Simpan */}
+                  <div className="pt-2 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsRestockRawOpen(false)}
+                      className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submittingRestockRaw}
+                      className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md transition cursor-pointer disabled:bg-slate-300 flex items-center gap-2"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>{submittingRestockRaw ? "Menyimpan Restok..." : "Simpan Restok & Perbarui HPP"}</span>
+                    </button>
+                  </div>
+                </form>
+
+                {/* Panel Riwayat Restok & Fluktuasi Harga Bahan ini */}
+                <div className="pt-4 border-t border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-black text-slate-900">
+                      <History className="h-3.5 w-3.5 text-amber-500" />
+                      <span>Riwayat Pembelian & Fluktuasi Harga ({selectedRawForRestock.name})</span>
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-mono">{rawRestockHistory.length} mutasi</span>
+                  </div>
+
+                  {loadingRestockHistory ? (
+                    <div className="text-xs text-slate-400 py-4 text-center">Memuat riwayat pembelian...</div>
+                  ) : rawRestockHistory.length === 0 ? (
+                    <div className="text-xs text-slate-400 py-4 text-center bg-slate-50 rounded-xl border border-slate-100">
+                      Belum ada riwayat pembelian untuk bahan baku ini.
+                    </div>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                          <tr>
+                            <th className="py-2 px-3 w-8 text-center">No</th>
+                            <th className="py-2 px-3">Tanggal</th>
+                            <th className="py-2 px-3">Vendor</th>
+                            <th className="py-2 px-3 text-right">Qty</th>
+                            <th className="py-2 px-3 text-right">Harga Satuan</th>
+                            <th className="py-2 px-3 text-center">Status Harga</th>
+                            <th className="py-2 px-3 text-right">Total</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-mono">
+                          {rawRestockHistory.map((item, idx) => {
+                            const isNaik = item.priceDiff && item.priceDiff > 0;
+                            const isTurun = item.priceDiff && item.priceDiff < 0;
+                            return (
+                              <tr key={item.id} className="hover:bg-slate-50/70 transition">
+                                <td className="py-2 px-3 text-slate-400 text-center">{idx + 1}</td>
+                                <td className="py-2 px-3 text-slate-600 font-sans">{formatDate(item.createdAt)}</td>
+                                <td className="py-2 px-3 text-slate-800 font-sans font-medium">{item.supplierName || "-"}</td>
+                                <td className="py-2 px-3 text-right font-bold text-emerald-600 font-sans">
+                                  +{item.changeQty} {selectedRawForRestock.unit}
+                                </td>
+                                <td className="py-2 px-3 text-right font-semibold text-slate-800 font-sans">
+                                  {item.purchasePrice ? formatRupiah(item.purchasePrice) : "-"}
+                                </td>
+                                <td className="py-2 px-3 text-center font-sans">
+                                  {isNaik ? (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">
+                                      ▲ +{item.priceDiffPercent?.toFixed(1)}%
+                                    </span>
+                                  ) : isTurun ? (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">
+                                      ▼ {item.priceDiffPercent?.toFixed(1)}%
+                                    </span>
+                                  ) : item.purchasePrice ? (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">
+                                      • Stabil
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400">-</span>
+                                  )}
+                                </td>
+                                <td className="py-2 px-3 text-right font-bold text-slate-900 font-sans">
+                                  {item.totalCost ? formatRupiah(item.totalCost) : "-"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
+      {/* ========================================================================= */}
+      {/* MODAL KHUSUS: RIWAYAT FLUKTUASI HARGA VENDOR & AUDIT INFLASI BAHAN */}
+      {/* ========================================================================= */}
+      {isPriceHistoryOpen && selectedRawForPriceHistory && (() => {
+        const validPrices = priceHistories
+          .map((h) => h.purchasePrice)
+          .filter((p): p is number => typeof p === "number" && p > 0);
+        const minPrice = validPrices.length > 0 ? Math.min(...validPrices) : null;
+        const maxPrice = validPrices.length > 0 ? Math.max(...validPrices) : null;
+        const avgPrice = validPrices.length > 0 ? Math.round(validPrices.reduce((a, b) => a + b, 0) / validPrices.length) : null;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[92vh]">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-2xl bg-indigo-500 text-white flex items-center justify-center font-bold shadow-xs">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 leading-tight">
+                      Riwayat Fluktuasi Harga Vendor
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Analisis histori perubahan harga beli dari supplier untuk bahan {selectedRawForPriceHistory.name}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPriceHistoryOpen(false)}
+                  className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1">
+                {/* Summary Metrics Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">HPP Saat Ini</div>
+                    <div className="text-sm font-black text-emerald-700 mt-0.5">
+                      {selectedRawForPriceHistory.costPerUnit > 0 ? formatRupiah(selectedRawForPriceHistory.costPerUnit) : "-"}
+                    </div>
+                    <div className="text-[10px] text-slate-500">per {selectedRawForPriceHistory.unit}</div>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Harga Terakhir</div>
+                    <div className="text-sm font-black text-amber-700 mt-0.5">
+                      {selectedRawForPriceHistory.lastPurchasePrice ? formatRupiah(selectedRawForPriceHistory.lastPurchasePrice) : "-"}
+                    </div>
+                    <div className="text-[10px] text-slate-500">pembelian terakhir</div>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Harga Terendah</div>
+                    <div className="text-sm font-black text-blue-700 mt-0.5">
+                      {minPrice ? formatRupiah(minPrice) : "-"}
+                    </div>
+                    <div className="text-[10px] text-slate-500">historis terbaik</div>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Harga Tertinggi</div>
+                    <div className="text-sm font-black text-rose-700 mt-0.5">
+                      {maxPrice ? formatRupiah(maxPrice) : "-"}
+                    </div>
+                    <div className="text-[10px] text-slate-500">historis termahal</div>
+                  </div>
+                </div>
+
+                {/* Insight Banner */}
+                {minPrice && maxPrice && maxPrice > minPrice && (
+                  <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 text-xs text-indigo-900 flex items-start gap-2.5">
+                    <Info className="h-4 w-4 shrink-0 text-indigo-600 mt-0.5" />
+                    <div>
+                      <span className="font-bold">Insight Fluktuasi Harga:</span> Harga bahan ini berfluktuasi antara{" "}
+                      <strong>{formatRupiah(minPrice)}</strong> hingga <strong>{formatRupiah(maxPrice)}</strong> (selisih{" "}
+                      {formatRupiah(maxPrice - minPrice)}). Gunakan metode <em>Weighted Average Cost</em> saat restok untuk menjaga kestabilan harga jual menu minuman Anda.
+                    </div>
+                  </div>
+                )}
+
+                {/* History Table */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black text-slate-900">Histori Transaksi Pembelian</h4>
+                    <span className="text-[11px] text-slate-400 font-mono">{priceHistories.length} catatan</span>
+                  </div>
+
+                  {loadingPriceHistory ? (
+                    <div className="py-10 text-center text-xs text-slate-400">Memuat riwayat fluktuasi harga...</div>
+                  ) : priceHistories.length === 0 ? (
+                    <div className="py-10 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-100">
+                      Belum ada catatan harga pembelian untuk bahan ini.
+                    </div>
+                  ) : (
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                          <tr>
+                            <th className="py-3 px-3.5">Tanggal</th>
+                            <th className="py-3 px-3.5">Vendor / Supplier</th>
+                            <th className="py-3 px-3.5 text-right">Jumlah Masuk</th>
+                            <th className="py-3 px-3.5 text-right">Harga Satuan</th>
+                            <th className="py-3 px-3.5 text-center">Perubahan</th>
+                            <th className="py-3 px-3.5 text-right">Total Belanja</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {priceHistories.map((hist) => {
+                            const isNaik = hist.priceDiff && hist.priceDiff > 0;
+                            const isTurun = hist.priceDiff && hist.priceDiff < 0;
+                            return (
+                              <tr key={hist.id} className="hover:bg-slate-50/70 transition">
+                                <td className="py-3 px-3.5 text-slate-500 font-mono">{formatDate(hist.createdAt)}</td>
+                                <td className="py-3 px-3.5 font-bold text-slate-900">
+                                  {hist.supplierName || hist.rawMaterial?.supplier || "-"}
+                                </td>
+                                <td className="py-3 px-3.5 text-right font-bold text-emerald-600">
+                                  +{hist.changeQty} {selectedRawForPriceHistory.unit}
+                                </td>
+                                <td className="py-3 px-3.5 text-right font-black text-slate-900">
+                                  {hist.purchasePrice ? formatRupiah(hist.purchasePrice) : "-"}
+                                </td>
+                                <td className="py-3 px-3.5 text-center">
+                                  {isNaik ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">
+                                      ▲ +{hist.priceDiffPercent?.toFixed(1)}%
+                                    </span>
+                                  ) : isTurun ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
+                                      ▼ {hist.priceDiffPercent?.toFixed(1)}%
+                                    </span>
+                                  ) : hist.purchasePrice ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
+                                      • Stabil
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400">-</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-3.5 text-right font-bold text-slate-700">
+                                  {hist.totalCost ? formatRupiah(hist.totalCost) : "-"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-slate-100 bg-white flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsPriceHistoryOpen(false)}
+                  className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ========================================================================= */}
       {/* MODAL EDIT BAHAN BAKU */}

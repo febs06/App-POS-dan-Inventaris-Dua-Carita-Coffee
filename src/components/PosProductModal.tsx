@@ -224,7 +224,7 @@ export default function PosProductModal({
             <h2 className="text-xl font-black text-slate-900 tracking-tight leading-snug">
               {baseDisplayName}
             </h2>
-            <div className="text-base font-extrabold text-[#803838] mt-0.5">
+            <div className="text-base font-extrabold text-[#852d2d] mt-0.5">
               {formatRupiah(currentPrice)}
             </div>
           </div>
@@ -243,7 +243,7 @@ export default function PosProductModal({
           {uniquePackagings.length > 1 && (
             <div>
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 mb-2">
-                <Package className="h-3.5 w-3.5 text-[#803838]" />
+                <Package className="h-3.5 w-3.5 text-[#852d2d]" />
                 <span>Packaging</span>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -258,14 +258,14 @@ export default function PosProductModal({
                       onClick={() => handleSelectPackaging(pack)}
                       className={`flex flex-col items-center justify-center py-4 px-3 rounded-2xl border-2 transition cursor-pointer ${
                         isSelected
-                          ? "border-[#803838] bg-[#fdf2f0] text-[#803838] font-bold shadow-xs"
+                          ? "border-[#852d2d] bg-[#fbebe9] text-[#852d2d] font-bold shadow-xs"
                           : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 font-semibold"
                       }`}
                     >
                       {isBotol ? (
-                        <FlaskConical className={`h-6 w-6 mb-1.5 ${isSelected ? "text-[#803838]" : "text-slate-500"}`} />
+                        <FlaskConical className={`h-6 w-6 mb-1.5 ${isSelected ? "text-[#852d2d]" : "text-slate-500"}`} />
                       ) : (
-                        <Coffee className={`h-6 w-6 mb-1.5 ${isSelected ? "text-[#803838]" : "text-slate-500"}`} />
+                        <Coffee className={`h-6 w-6 mb-1.5 ${isSelected ? "text-[#852d2d]" : "text-slate-500"}`} />
                       )}
                       <span className="text-xs">{pack}</span>
                     </button>
@@ -279,7 +279,7 @@ export default function PosProductModal({
           {availableSizesForPackaging.length > 0 && (
             <div>
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 mb-2">
-                <Tag className="h-3.5 w-3.5 text-[#803838]" />
+                <Tag className="h-3.5 w-3.5 text-[#852d2d]" />
                 <span>Ukuran</span>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -292,7 +292,7 @@ export default function PosProductModal({
                       onClick={() => setSelectedSize(sz)}
                       className={`py-3 px-4 rounded-2xl border-2 text-xs text-center transition cursor-pointer ${
                         isSelected
-                          ? "border-[#803838] bg-[#fdf2f0] text-[#803838] font-bold shadow-xs"
+                          ? "border-[#852d2d] bg-[#fbebe9] text-[#852d2d] font-bold shadow-xs"
                           : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 font-medium"
                       }`}
                     >
@@ -307,14 +307,14 @@ export default function PosProductModal({
           {/* Jumlah Stepper */}
           <div>
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 mb-2">
-              <Layers className="h-3.5 w-3.5 text-[#803838]" />
+              <Layers className="h-3.5 w-3.5 text-[#852d2d]" />
               <span>Jumlah</span>
             </div>
             <div className="inline-flex items-center border border-slate-200 rounded-xl bg-white p-1 gap-1">
               <button
                 type="button"
                 onClick={() => setQty((prev) => Math.max(1, prev - 1))}
-                className="h-8 w-8 rounded-lg border border-slate-200 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                className="h-8 w-8 rounded-lg border border-slate-200 flex items-center justify-center font-bold text-[#852d2d] hover:bg-slate-100 transition cursor-pointer"
               >
                 <Minus className="h-3.5 w-3.5" />
               </button>
@@ -328,7 +328,7 @@ export default function PosProductModal({
               <button
                 type="button"
                 onClick={() => setQty((prev) => prev + 1)}
-                className="h-8 w-8 rounded-lg border border-slate-200 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                className="h-8 w-8 rounded-lg border border-slate-200 flex items-center justify-center font-bold text-[#852d2d] hover:bg-slate-100 transition cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>
@@ -338,7 +338,7 @@ export default function PosProductModal({
           {/* Catatan (Opsional) */}
           <div>
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 mb-2">
-              <FileEdit className="h-3.5 w-3.5 text-[#803838]" />
+              <FileEdit className="h-3.5 w-3.5 text-[#852d2d]" />
               <span>Catatan</span>
               <span className="text-[11px] font-normal text-slate-400">(Opsional)</span>
             </div>
@@ -354,7 +354,7 @@ export default function PosProductModal({
                     onClick={() => handleToggleNoteChip(chip)}
                     className={`text-[10px] px-2.5 py-1 rounded-lg border transition cursor-pointer ${
                       isActive
-                        ? "bg-[#fdf2f0] border-[#803838] text-[#803838] font-bold"
+                        ? "bg-[#fbebe9] border-[#852d2d] text-[#852d2d] font-bold"
                         : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-amber-50 hover:border-amber-300 font-medium"
                     }`}
                   >
@@ -369,12 +369,12 @@ export default function PosProductModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Contoh: less sugar, tanpa es, extra shot..."
-              className="w-full text-xs p-3 rounded-2xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#803838]/20 focus:border-[#803838] transition resize-none"
+              className="w-full text-xs p-3 rounded-2xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#852d2d]/20 focus:border-[#852d2d] transition resize-none"
             />
           </div>
 
           {/* Subtotal Bar */}
-          <div className="rounded-2xl bg-[#fceeed] p-4 flex items-center justify-between">
+          <div className="rounded-2xl bg-[#fbebe8] p-4 flex items-center justify-between">
             <span className="text-xs font-bold text-[#702424]">Subtotal</span>
             <span className="text-base font-black text-[#702424]">
               {formatRupiah(subtotal)}
