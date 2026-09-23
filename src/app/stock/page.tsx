@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Clock,
   PackagePlus,
+  Package,
   ArrowUpDown,
   Sparkles,
   Zap,
@@ -63,6 +64,13 @@ export default function StockManagementPage() {
   const [restockCostMethod, setRestockCostMethod] = useState<"average" | "latest">("average");
   const [restockRecordCash, setRestockRecordCash] = useState(false);
 
+  // Pack Purchasing & Conversion state
+  const [restockInputMode, setRestockInputMode] = useState<"pack" | "base">("pack");
+  const [restockPackQty, setRestockPackQty] = useState("1");
+  const [restockPackPrice, setRestockPackPrice] = useState("");
+  const [restockPackSize, setRestockPackSize] = useState("1000");
+  const [restockBuyUnit, setRestockBuyUnit] = useState("pack");
+
   // Price History Modal state
   const [isPriceHistoryOpen, setIsPriceHistoryOpen] = useState(false);
   const [selectedRawForPriceHistory, setSelectedRawForPriceHistory] = useState<any | null>(null);
@@ -74,6 +82,9 @@ export default function StockManagementPage() {
   const [newRawStock, setNewRawStock] = useState("0");
   const [newRawUnit, setNewRawUnit] = useState("gram");
   const [newRawNotes, setNewRawNotes] = useState("");
+  const [newRawBuyUnit, setNewRawBuyUnit] = useState("pack");
+  const [newRawPackSize, setNewRawPackSize] = useState("1000");
+  const [newRawPackPrice, setNewRawPackPrice] = useState("");
   const [submittingNewRaw, setSubmittingNewRaw] = useState(false);
 
   // Modal "Restok Bahan"
@@ -95,6 +106,9 @@ export default function StockManagementPage() {
   const [editRawMinStock, setEditRawMinStock] = useState("10");
   const [editRawCostPerUnit, setEditRawCostPerUnit] = useState("0");
   const [editRawSupplier, setEditRawSupplier] = useState("");
+  const [editRawBuyUnit, setEditRawBuyUnit] = useState("pack");
+  const [editRawPackSize, setEditRawPackSize] = useState("1000");
+  const [editRawPackPrice, setEditRawPackPrice] = useState("");
   const [submittingEditRaw, setSubmittingEditRaw] = useState(false);
 
   // ==========================================
@@ -258,15 +272,23 @@ export default function StockManagementPage() {
 
     setSubmittingNewRaw(true);
     try {
+      const pSize = parseFloat(newRawPackSize) || (newRawUnit === "gram" || newRawUnit === "ml" ? 1000 : 1);
+      const pPrice = newRawPackPrice ? parseFloat(newRawPackPrice) : undefined;
+      const initialStockPacks = parseFloat(newRawStock) || 0;
+      const totalInitialStock = initialStockPacks * pSize;
+
       const res = await fetch("/api/raw-materials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: newRawName.trim(),
-          stock: parseFloat(newRawStock) || 0,
+          stock: totalInitialStock,
           unit: newRawUnit.trim(),
           supplier: newRawNotes.trim() || undefined,
           category: "Bahan Minuman",
+          buyUnit: newRawBuyUnit.trim() || "pack",
+          packSize: pSize,
+          lastPackPrice: pPrice,
         }),
       });
 
@@ -279,6 +301,7 @@ export default function StockManagementPage() {
       setNewRawName("");
       setNewRawStock("0");
       setNewRawNotes("");
+      setNewRawPackPrice("");
       loadRawMaterials();
       loadRawLogs();
       alert("Bahan baku baru berhasil ditambahkan!");
@@ -294,16 +317,24 @@ export default function StockManagementPage() {
   // ==========================================
   const openRestockModal = async (material: any) => {
     setSelectedRawForRestock(material);
-    setRestockRawQty("10");
-    setRestockRawDate(new Date().toISOString().split("T")[0]);
-    setRestockRawNotes("");
-    setRestockSupplier(material.supplier || "");
+    setRestockInputMode("pack");
+    setRestockPackQty("1");
+    setRestockBuyUnit(material.buyUnit || "pack");
+    const defaultSize = material.packSize || (material.unit === "gram" || material.unit === "ml" ? 1000 : 1);
+    setRestockPackSize(String(defaultSize));
+    setRestockPackPrice(material.lastPackPrice ? String(material.lastPackPrice) : "");
+
+    // Fallback base values
+    setRestockRawQty(String(defaultSize));
     const initialPrice = material.lastPurchasePrice
       ? String(material.lastPurchasePrice)
       : material.costPerUnit > 0
       ? String(material.costPerUnit)
       : "";
     setRestockPurchasePrice(initialPrice);
+    setRestockRawDate(new Date().toISOString().split("T")[0]);
+    setRestockRawNotes("");
+    setRestockSupplier(material.supplier || "");
     setRestockCostMethod("average");
     setRestockRecordCash(false);
     setIsRestockRawOpen(true);
@@ -323,31 +354,53 @@ export default function StockManagementPage() {
 
   const handleSaveRestock = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedRawForRestock || !restockRawQty) return;
-
-    const qty = parseFloat(restockRawQty);
-    if (isNaN(qty) || qty <= 0) {
-      alert("Jumlah restok harus berupa angka positif lebih dari 0");
-      return;
-    }
+    if (!selectedRawForRestock) return;
 
     setSubmittingRestockRaw(true);
     try {
-      const priceVal = restockPurchasePrice ? parseFloat(restockPurchasePrice) : undefined;
+      const body: any = {
+        rawMaterialId: selectedRawForRestock.id,
+        type: "restock",
+        date: restockRawDate,
+        supplierName: restockSupplier.trim() || undefined,
+        costMethod: restockCostMethod,
+        recordCashExpense: restockRecordCash,
+      };
+
+      if (restockInputMode === "pack") {
+        const pQty = parseFloat(restockPackQty);
+        const pPrice = parseFloat(restockPackPrice);
+        const pSize = parseFloat(restockPackSize) || (selectedRawForRestock.unit === "gram" || selectedRawForRestock.unit === "ml" ? 1000 : 1);
+
+        if (isNaN(pQty) || pQty <= 0) {
+          alert("Jumlah pack/kemasan harus berupa angka positif lebih dari 0");
+          return;
+        }
+        if (isNaN(pPrice) || pPrice <= 0) {
+          alert("Harga beli per pack/kemasan wajib diisi");
+          return;
+        }
+
+        body.packQty = pQty;
+        body.packPrice = pPrice;
+        body.packSize = pSize;
+        body.buyUnit = restockBuyUnit.trim() || "pack";
+        body.notes = restockRawNotes.trim() || `Restok ${pQty} ${restockBuyUnit} @ ${pSize} ${selectedRawForRestock.unit}`;
+      } else {
+        const qty = parseFloat(restockRawQty);
+        if (isNaN(qty) || qty <= 0) {
+          alert("Jumlah restok harus berupa angka positif lebih dari 0");
+          return;
+        }
+        body.changeQty = qty;
+        body.purchasePrice = restockPurchasePrice ? parseFloat(restockPurchasePrice) : undefined;
+        body.notes = restockRawNotes.trim() || `Restok ${selectedRawForRestock.name}`;
+      }
+
       const res = await fetch("/api/raw-materials/mutate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rawMaterialId: selectedRawForRestock.id,
-          changeQty: qty,
-          type: "restock",
-          notes: restockRawNotes.trim() || `Restok ${selectedRawForRestock.name}`,
-          date: restockRawDate,
-          purchasePrice: priceVal,
-          supplierName: restockSupplier.trim() || undefined,
-          costMethod: restockCostMethod,
-          recordCashExpense: restockRecordCash,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -360,7 +413,7 @@ export default function StockManagementPage() {
       loadRawMaterials();
       loadRawLogs();
 
-      alert(`Restok ${selectedRawForRestock.name} sebanyak ${qty} ${selectedRawForRestock.unit} berhasil disimpan!`);
+      alert(`Restok ${selectedRawForRestock.name} berhasil disimpan!`);
       setIsRestockRawOpen(false);
     } catch {
       alert("Gagal menghubungi server");
@@ -397,6 +450,9 @@ export default function StockManagementPage() {
     setEditRawMinStock(String(material.minStock));
     setEditRawCostPerUnit(String(material.costPerUnit || 0));
     setEditRawSupplier(material.supplier || "");
+    setEditRawBuyUnit(material.buyUnit || "pack");
+    setEditRawPackSize(String(material.packSize || (material.unit === "gram" || material.unit === "ml" ? 1000 : 1)));
+    setEditRawPackPrice(material.lastPackPrice ? String(material.lastPackPrice) : "");
     setIsEditRawModalOpen(true);
   };
 
@@ -417,6 +473,9 @@ export default function StockManagementPage() {
           minStock: parseFloat(editRawMinStock) || 0,
           costPerUnit: parseFloat(editRawCostPerUnit) || 0,
           supplier: editRawSupplier,
+          buyUnit: editRawBuyUnit,
+          packSize: parseFloat(editRawPackSize) || 1000,
+          lastPackPrice: editRawPackPrice ? parseFloat(editRawPackPrice) : null,
         }),
       });
 
@@ -699,73 +758,143 @@ export default function StockManagementPage() {
               </div>
             </div>
 
-            <form onSubmit={handleCreateNewRaw} className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 items-end">
-              <div className="sm:col-span-4">
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Nama Bahan <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newRawName}
-                  onChange={(e) => setNewRawName(e.target.value)}
-                  placeholder="Contoh: Susu Full Cream / Biji Kopi"
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500"
-                />
+            <form onSubmit={handleCreateNewRaw} className="space-y-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
+                <div className="sm:col-span-4">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Nama Bahan <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newRawName}
+                    onChange={(e) => setNewRawName(e.target.value)}
+                    placeholder="Contoh: Susu UHT Diamond / Biji Espresso Blend"
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Satuan Resep <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={newRawUnit}
+                    onChange={(e) => setNewRawUnit(e.target.value)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                  >
+                    <option value="ml">mililiter (ml)</option>
+                    <option value="gram">gram (g)</option>
+                    <option value="pcs">pieces (pcs)</option>
+                    <option value="cup">cup</option>
+                    <option value="botol">botol</option>
+                    <option value="pack">pack</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Kemasan Beli <span className="text-slate-400 font-normal">(biasa dibeli)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newRawBuyUnit}
+                    onChange={(e) => setNewRawBuyUnit(e.target.value)}
+                    placeholder="pack / karton / botol / dus"
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Isi per Kemasan ({newRawUnit})
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={newRawPackSize}
+                    onChange={(e) => setNewRawPackSize(e.target.value)}
+                    placeholder="Contoh: 1000"
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
               </div>
 
-              <div className="sm:col-span-2">
-                <label className="text-xs font-bold text-slate-700 block mb-1">Jumlah</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={newRawStock}
-                  onChange={(e) => setNewRawStock(e.target.value)}
-                  placeholder="0"
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 items-end">
+                <div className="sm:col-span-3">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Harga Beli per {newRawBuyUnit || "Kemasan"} (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={newRawPackPrice}
+                    onChange={(e) => setNewRawPackPrice(e.target.value)}
+                    placeholder="Contoh: 19500"
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Stok Awal ({newRawBuyUnit || "kemasan"})
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={newRawStock}
+                    onChange={(e) => setNewRawStock(e.target.value)}
+                    placeholder="0"
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div className="sm:col-span-4">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Supplier / Vendor <span className="text-slate-400 font-normal">(Opsional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newRawNotes}
+                    onChange={(e) => setNewRawNotes(e.target.value)}
+                    placeholder="Contoh: CV Kopi Prima / Toko Susu"
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <button
+                    type="submit"
+                    disabled={submittingNewRaw}
+                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-sm transition flex items-center justify-center cursor-pointer disabled:bg-slate-300"
+                  >
+                    {submittingNewRaw ? "Menyimpan..." : "+ Tambah Bahan"}
+                  </button>
+                </div>
               </div>
 
-              <div className="sm:col-span-2">
-                <label className="text-xs font-bold text-slate-700 block mb-1">Satuan</label>
-                <select
-                  value={newRawUnit}
-                  onChange={(e) => setNewRawUnit(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500"
-                >
-                  <option value="gram">gram (g)</option>
-                  <option value="ml">mililiter (ml)</option>
-                  <option value="pcs">pieces (pcs)</option>
-                  <option value="kg">kilogram (kg)</option>
-                  <option value="liter">liter (L)</option>
-                  <option value="botol">botol</option>
-                  <option value="pack">pack / dus</option>
-                  <option value="cup">cup</option>
-                </select>
-              </div>
-
-              <div className="sm:col-span-3">
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Keterangan <span className="text-slate-400 font-normal">(Opsional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={newRawNotes}
-                  onChange={(e) => setNewRawNotes(e.target.value)}
-                  placeholder="Contoh: Supplier CV Kopi Prima"
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              <div className="sm:col-span-1">
-                <button
-                  type="submit"
-                  disabled={submittingNewRaw}
-                  className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-sm transition flex items-center justify-center cursor-pointer disabled:bg-slate-300"
-                >
-                  {submittingNewRaw ? "..." : "Tambah"}
-                </button>
-              </div>
+              {/* Live Auto-Conversion Hint */}
+              {parseFloat(newRawPackPrice) > 0 && parseFloat(newRawPackSize) > 0 && (
+                <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-amber-900 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold">💡 Kalkulasi Otomatis Sistem:</span>
+                    <span>
+                      Harga <strong>{formatRupiah(parseFloat(newRawPackPrice))}</strong> / {newRawBuyUnit || "pack"} ({newRawPackSize} {newRawUnit}) ➔ HPP Resep:{" "}
+                      <strong className="text-emerald-700">
+                        {formatRupiah(parseFloat(newRawPackPrice) / parseFloat(newRawPackSize))} / {newRawUnit}
+                      </strong>
+                    </span>
+                  </div>
+                  {parseFloat(newRawStock) > 0 && (
+                    <div className="text-[11px] font-semibold text-slate-700">
+                      Stok awal dikonversi:{" "}
+                      <strong className="text-slate-900">
+                        {parseFloat(newRawStock) * parseFloat(newRawPackSize)} {newRawUnit}
+                      </strong>
+                    </div>
+                  )}
+                </div>
+              )}
             </form>
           </div>
 
@@ -838,21 +967,49 @@ export default function StockManagementPage() {
                             </div>
                           </td>
                           <td className="py-3.5 px-4">
-                            <span className={`font-black text-sm ${isLow ? "text-rose-600" : "text-slate-900"}`}>
-                              {m.stock}
-                            </span>
+                            <div className={`font-black text-sm ${isLow ? "text-rose-600" : "text-slate-900"}`}>
+                              {m.stock} <span className="text-xs font-semibold text-slate-500">{m.unit}</span>
+                            </div>
+                            {m.packSize && m.packSize > 1 ? (
+                              <div className="text-[11px] font-medium text-slate-500">
+                                ≈ {(m.stock / m.packSize).toFixed(1)} {m.buyUnit || "pack"}
+                              </div>
+                            ) : null}
                           </td>
-                          <td className="py-3.5 px-4 text-slate-600 font-semibold">{m.unit}</td>
+                          <td className="py-3.5 px-4 text-slate-600 font-semibold">
+                            <div>{m.unit}</div>
+                            {m.packSize && m.packSize > 1 && (
+                              <div className="text-[10px] text-slate-400">
+                                1 {m.buyUnit || "pack"} = {m.packSize} {m.unit}
+                              </div>
+                            )}
+                          </td>
                           <td className="py-3.5 px-4 font-semibold text-slate-800">
                             {m.costPerUnit > 0 ? (
-                              <span className="text-emerald-700 font-bold">{formatRupiah(m.costPerUnit)}</span>
+                              <div>
+                                <span className="text-emerald-700 font-bold">{formatRupiah(m.costPerUnit)}</span>
+                                <span className="text-[10px] text-slate-500"> /{m.unit}</span>
+                                {m.packSize && m.packSize > 1 && (
+                                  <div className="text-[10px] text-slate-500 font-normal">
+                                    ≈ {formatRupiah(Math.round(m.costPerUnit * m.packSize))} /{m.buyUnit || "pack"}
+                                  </div>
+                                )}
+                              </div>
                             ) : (
                               <span className="text-slate-400 font-normal">Belum dihitung</span>
                             )}
                           </td>
                           <td className="py-3.5 px-4 font-semibold text-slate-800">
-                            {hasLastPrice ? (
-                              <span className="text-amber-800 font-bold">{formatRupiah(m.lastPurchasePrice)}</span>
+                            {m.lastPackPrice ? (
+                              <div>
+                                <span className="text-amber-800 font-bold">{formatRupiah(m.lastPackPrice)}</span>
+                                <span className="text-[10px] text-slate-500"> /{m.buyUnit || "pack"}</span>
+                                <div className="text-[10px] text-slate-500 font-normal">
+                                  ({formatRupiah(m.lastPurchasePrice || Math.round(m.lastPackPrice / (m.packSize || 1000)))} /{m.unit})
+                                </div>
+                              </div>
+                            ) : hasLastPrice ? (
+                              <span className="text-amber-800 font-bold">{formatRupiah(m.lastPurchasePrice)} /{m.unit}</span>
                             ) : (
                               <span className="text-slate-400 font-normal">-</span>
                             )}
@@ -1245,22 +1402,45 @@ export default function StockManagementPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL RESTOK BAHAN DENGAN FITUR FLUKTUASI HARGA VENDOR & HPP */}
+      {/* MODAL RESTOK BAHAN DENGAN FITUR PEMBELIAN PACK & FLUKTUASI HARGA VENDOR */}
       {/* ========================================================================= */}
       {isRestockRawOpen && selectedRawForRestock && (() => {
-        const prevPrice = selectedRawForRestock.lastPurchasePrice || (selectedRawForRestock.costPerUnit > 0 ? selectedRawForRestock.costPerUnit : 0);
-        const currentEnteredPrice = parseFloat(restockPurchasePrice) || 0;
-        const enteredQty = parseFloat(restockRawQty) || 0;
+        const baseUnit = selectedRawForRestock.unit;
+        const buyUnit = restockBuyUnit || selectedRawForRestock.buyUnit || "pack";
+        const packSize = parseFloat(restockPackSize) || selectedRawForRestock.packSize || (baseUnit === "gram" || baseUnit === "ml" ? 1000 : 1);
+        
+        const isPackMode = restockInputMode === "pack";
+        const pQty = parseFloat(restockPackQty) || 0;
+        const pPrice = parseFloat(restockPackPrice) || 0;
+        const bQty = parseFloat(restockRawQty) || 0;
+        const bPrice = parseFloat(restockPurchasePrice) || 0;
+
+        // Effective quantities in recipe base units
+        const effectiveQty = isPackMode ? pQty * packSize : bQty;
+        const effectiveUnitPrice = isPackMode ? (packSize > 0 ? pPrice / packSize : 0) : bPrice;
+        const totalRestockCost = isPackMode ? Math.round(pQty * pPrice) : Math.round(bQty * bPrice);
+
+        // Previous prices
+        const prevUnitPrice = selectedRawForRestock.lastPurchasePrice || (selectedRawForRestock.costPerUnit > 0 ? selectedRawForRestock.costPerUnit : 0);
+        const prevPackPrice = selectedRawForRestock.lastPackPrice || (prevUnitPrice > 0 ? Math.round(prevUnitPrice * packSize) : 0);
+
+        // Fluctuation calculation
+        const priceDiff = isPackMode
+          ? (pPrice > 0 && prevPackPrice > 0 ? pPrice - prevPackPrice : 0)
+          : (bPrice > 0 && prevUnitPrice > 0 ? bPrice - prevUnitPrice : 0);
+        const priceDiffPercent = isPackMode
+          ? (prevPackPrice > 0 ? (priceDiff / prevPackPrice) * 100 : 0)
+          : (prevUnitPrice > 0 ? (priceDiff / prevUnitPrice) * 100 : 0);
+
+        // Stock after calculation
         const currentStock = Math.max(0, selectedRawForRestock.stock);
-        const totalStockAfter = currentStock + enteredQty;
+        const totalStockAfter = currentStock + effectiveQty;
 
-        const priceDiff = currentEnteredPrice > 0 && prevPrice > 0 ? currentEnteredPrice - prevPrice : 0;
-        const priceDiffPercent = prevPrice > 0 ? ((currentEnteredPrice - prevPrice) / prevPrice) * 100 : 0;
-        const totalRestockCost = Math.round(enteredQty * currentEnteredPrice);
-
-        const simulatedWAC = totalStockAfter > 0
-          ? Math.round(((currentStock * (selectedRawForRestock.costPerUnit || prevPrice)) + (enteredQty * currentEnteredPrice)) / totalStockAfter)
-          : currentEnteredPrice;
+        // Simulated Weighted Average Cost (WAC)
+        const currentVal = currentStock * (selectedRawForRestock.costPerUnit > 0 ? selectedRawForRestock.costPerUnit : prevUnitPrice);
+        const incomingVal = effectiveQty * effectiveUnitPrice;
+        const simulatedWAC = totalStockAfter > 0 ? (currentVal + incomingVal) / totalStockAfter : effectiveUnitPrice;
+        const simulatedPackWAC = Math.round(simulatedWAC * packSize);
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in">
@@ -1276,7 +1456,7 @@ export default function StockManagementPage() {
                       Restok Bahan & Update Harga
                     </h3>
                     <p className="text-[11px] text-slate-500">
-                      Catat pembelian vendor, pantau kenaikan harga & sesuaikan HPP
+                      Beli per kemasan/pack tanpa perlu hitung harga per gram/ml manual
                     </p>
                   </div>
                 </div>
@@ -1306,10 +1486,40 @@ export default function StockManagementPage() {
                       <div className="text-sm font-black text-amber-700">
                         {selectedRawForRestock.stock} <span className="text-xs font-semibold text-slate-600">{selectedRawForRestock.unit}</span>
                       </div>
-                      <div className="text-xs text-emerald-700 font-semibold mt-0.5">
-                        HPP: {selectedRawForRestock.costPerUnit > 0 ? formatRupiah(selectedRawForRestock.costPerUnit) : "-"}
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        {selectedRawForRestock.packSize && selectedRawForRestock.packSize > 1 ? (
+                          <span>≈ {(selectedRawForRestock.stock / selectedRawForRestock.packSize).toFixed(1)} {selectedRawForRestock.buyUnit || "pack"}</span>
+                        ) : null}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Mode Selector Toggle */}
+                  <div className="flex rounded-2xl bg-slate-100 p-1 border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setRestockInputMode("pack")}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        isPackMode
+                          ? "bg-amber-500 text-slate-950 shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      <Package className="h-3.5 w-3.5" />
+                      <span>Beli per Kemasan ({buyUnit})</span>
+                      <span className="text-[9px] bg-slate-900/10 px-1.5 py-0.5 rounded font-black">Rekomendasi</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRestockInputMode("base")}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        !isPackMode
+                          ? "bg-amber-500 text-slate-950 shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      <span>Input per {baseUnit}</span>
+                    </button>
                   </div>
 
                   {/* Vendor / Supplier Input */}
@@ -1317,7 +1527,7 @@ export default function StockManagementPage() {
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                         <Building2 className="h-3.5 w-3.5 text-amber-600" />
-                        <span>Vendor / Supplier Pembelian</span>
+                        <span>Vendor / Toko Tempat Beli</span>
                       </label>
                       <span className="text-[11px] text-slate-400 font-normal">Pilih atau ketik vendor</span>
                     </div>
@@ -1326,7 +1536,7 @@ export default function StockManagementPage() {
                       type="text"
                       value={restockSupplier}
                       onChange={(e) => setRestockSupplier(e.target.value)}
-                      placeholder="Contoh: CV Kopi Prima / Toko Susu Lembang"
+                      placeholder="Contoh: CV Mitra Kopi / Indogrosir / Toko Susu Lembang"
                       className="w-full text-xs font-semibold p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
                     />
                     <datalist id="supplier-options">
@@ -1338,99 +1548,197 @@ export default function StockManagementPage() {
                     </datalist>
                   </div>
 
-                  {/* Jumlah & Satuan */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1">
-                        Jumlah Restok <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        step="any"
-                        min="0.01"
-                        required
-                        value={restockRawQty}
-                        onChange={(e) => setRestockRawQty(e.target.value)}
-                        placeholder="Contoh: 10"
-                        className="w-full text-xs font-black p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
-                      />
-                    </div>
+                  {/* INPUT FIELDS: PACK MODE */}
+                  {isPackMode ? (
+                    <div className="space-y-3.5 p-4 rounded-2xl bg-amber-50/30 border border-amber-200/70">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Kemasan Pembelian
+                          </label>
+                          <input
+                            type="text"
+                            value={restockBuyUnit}
+                            onChange={(e) => setRestockBuyUnit(e.target.value)}
+                            placeholder="pack / karton / botol"
+                            className="w-full text-xs font-bold p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
+                          />
+                        </div>
 
-                    <div>
-                      <label className="text-xs font-bold text-slate-600 block mb-1">Satuan</label>
-                      <input
-                        type="text"
-                        readOnly
-                        value={selectedRawForRestock.unit}
-                        className="w-full text-xs font-bold p-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Isi per {buyUnit} ({baseUnit})
+                          </label>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0.1"
+                            value={restockPackSize}
+                            onChange={(e) => setRestockPackSize(e.target.value)}
+                            placeholder="1000"
+                            className="w-full text-xs font-bold p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
+                          />
+                        </div>
+                      </div>
 
-                  {/* Harga Beli Satuan & Deteksi Fluktuasi */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                        <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
-                        <span>Harga Beli Satuan (Rp) per {selectedRawForRestock.unit}</span>
-                      </label>
-                      {prevPrice > 0 && (
-                        <span className="text-[11px] font-semibold text-slate-500">
-                          Harga Terakhir: <strong className="text-slate-800">{formatRupiah(prevPrice)}</strong>
-                        </span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Jumlah {buyUnit} Dibeli <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0.01"
+                            required
+                            value={restockPackQty}
+                            onChange={(e) => setRestockPackQty(e.target.value)}
+                            placeholder="Contoh: 3"
+                            className="w-full text-xs font-black p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Harga per {buyUnit} (Rp) <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            required
+                            value={restockPackPrice}
+                            onChange={(e) => setRestockPackPrice(e.target.value)}
+                            placeholder={prevPackPrice > 0 ? String(prevPackPrice) : "Contoh: 19500"}
+                            className="w-full text-xs font-black p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Live Auto-Conversion Card */}
+                      {pQty > 0 && packSize > 0 && (
+                        <div className="p-3 rounded-xl bg-white border border-amber-300 shadow-2xs space-y-1.5">
+                          <div className="text-[10px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
+                            <Sparkles className="h-3 w-3" />
+                            <span>Kalkulasi Otomatis Sistem</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-slate-500">Stok Masuk: </span>
+                              <strong className="text-slate-900 font-black">
+                                +{pQty * packSize} {baseUnit}
+                              </strong>
+                              <span className="text-[10px] text-slate-400 block font-normal">
+                                ({pQty} {buyUnit} × {packSize} {baseUnit})
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">HPP Satuan Resep: </span>
+                              <strong className="text-emerald-700 font-black">
+                                {pPrice > 0 ? formatRupiah(pPrice / packSize) : "-"} /{baseUnit}
+                              </strong>
+                              <span className="text-[10px] text-slate-400 block font-normal">
+                                (Rp {pPrice.toLocaleString("id-ID")} ÷ {packSize})
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Fluktuasi Harga Pack Vendor Badge */}
+                      {pPrice > 0 && prevPackPrice > 0 && (
+                        <div>
+                          {priceDiff > 0 ? (
+                            <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
+                              <TrendingUp className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                              <div>
+                                <div className="font-bold">
+                                  🔴 Harga Beli Naik +{formatRupiah(priceDiff)} (+{priceDiffPercent.toFixed(1)}%) per {buyUnit}
+                                </div>
+                                <p className="text-[11px] text-rose-700 mt-0.5">
+                                  Sebelumnya: {formatRupiah(prevPackPrice)} /{buyUnit}. Sistem otomatis menyesuaikan HPP resep di bawah agar keuntungan booth tetap terjaga.
+                                </p>
+                              </div>
+                            </div>
+                          ) : priceDiff < 0 ? (
+                            <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2">
+                              <TrendingDown className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                              <div>
+                                <div className="font-bold">
+                                  🟢 Harga Beli Turun -{formatRupiah(Math.abs(priceDiff))} ({priceDiffPercent.toFixed(1)}%) per {buyUnit}
+                                </div>
+                                <p className="text-[11px] text-emerald-700 mt-0.5">
+                                  Sebelumnya: {formatRupiah(prevPackPrice)} /{buyUnit}. Lebih hemat! Margin keuntungan per cup akan otomatis meningkat.
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-xs flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-slate-400"></span>
+                              <span className="font-semibold">⚪ Harga Stabil (Sama persis dengan pembelian terakhir: {formatRupiah(prevPackPrice)} /{buyUnit}).</span>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="any"
-                        min="0"
-                        value={restockPurchasePrice}
-                        onChange={(e) => setRestockPurchasePrice(e.target.value)}
-                        placeholder={prevPrice > 0 ? String(prevPrice) : "Masukkan harga beli dari vendor"}
-                        className="w-full text-xs font-black p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
-                      />
-                    </div>
+                  ) : (
+                    /* INPUT FIELDS: BASE UNIT MODE */
+                    <div className="space-y-3.5">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Jumlah Restok <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0.01"
+                            required
+                            value={restockRawQty}
+                            onChange={(e) => setRestockRawQty(e.target.value)}
+                            placeholder="Contoh: 1000"
+                            className="w-full text-xs font-black p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
+                          />
+                        </div>
 
-                    {/* Indikator Real-time Fluktuasi Harga (Naik / Turun / Stabil) */}
-                    {currentEnteredPrice > 0 && prevPrice > 0 && (
-                      <div className="mt-2">
-                        {priceDiff > 0 ? (
-                          <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
-                            <TrendingUp className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
-                            <div>
-                              <div className="font-bold">
-                                🔴 Harga Beli Naik +{formatRupiah(priceDiff)} (+{priceDiffPercent.toFixed(1)}%)
-                              </div>
-                              <p className="text-[11px] text-rose-700 mt-0.5">
-                                Harga vendor lebih mahal dari sebelumnya. Sistem akan menghitung HPP rata-rata baru di bawah agar biaya produksi akurat.
-                              </p>
-                            </div>
-                          </div>
-                        ) : priceDiff < 0 ? (
-                          <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2">
-                            <TrendingDown className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
-                            <div>
-                              <div className="font-bold">
-                                🟢 Harga Beli Turun -{formatRupiah(Math.abs(priceDiff))} ({priceDiffPercent.toFixed(1)}%)
-                              </div>
-                              <p className="text-[11px] text-emerald-700 mt-0.5">
-                                Lebih hemat! Pembelian ini menurunkan rata-rata biaya bahan baku dan menaikkan margin laba penjualan.
-                              </p>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-xs flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-slate-400"></span>
-                            <span className="font-semibold">⚪ Harga Stabil (Sama dengan harga pembelian sebelumnya).</span>
-                          </div>
-                        )}
+                        <div>
+                          <label className="text-xs font-bold text-slate-600 block mb-1">Satuan</label>
+                          <input
+                            type="text"
+                            readOnly
+                            value={baseUnit}
+                            className="w-full text-xs font-bold p-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 cursor-not-allowed"
+                          />
+                        </div>
                       </div>
-                    )}
-                  </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                            <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                            <span>Harga Beli Satuan (Rp) per {baseUnit}</span>
+                          </label>
+                          {prevUnitPrice > 0 && (
+                            <span className="text-[11px] font-semibold text-slate-500">
+                              Harga Terakhir: <strong className="text-slate-800">{formatRupiah(prevUnitPrice)}</strong>
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          value={restockPurchasePrice}
+                          onChange={(e) => setRestockPurchasePrice(e.target.value)}
+                          placeholder={prevUnitPrice > 0 ? String(prevUnitPrice) : "Masukkan harga beli"}
+                          className="w-full text-xs font-black p-2.5 rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Pilihan Metode Kalkulasi HPP (Solusi Fluktuasi Harga) */}
-                  {currentEnteredPrice > 0 && (
+                  {effectiveUnitPrice > 0 && (
                     <div className="p-3.5 rounded-2xl border border-amber-200/90 bg-amber-50/40 space-y-2.5">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
                         <Calculator className="h-4 w-4 text-amber-600" />
@@ -1462,10 +1770,15 @@ export default function StockManagementPage() {
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                              Menggabungkan sisa stok lama ({currentStock} {selectedRawForRestock.unit} @ {formatRupiah(selectedRawForRestock.costPerUnit || prevPrice)}) dengan stok baru ({enteredQty} {selectedRawForRestock.unit} @ {formatRupiah(currentEnteredPrice)}).
+                              Menggabungkan sisa stok lama ({currentStock} {baseUnit} @ {formatRupiah(selectedRawForRestock.costPerUnit || prevUnitPrice)}) dengan stok baru ({effectiveQty} {baseUnit} @ {formatRupiah(effectiveUnitPrice)}).
                             </p>
                             <div className="text-xs font-black text-emerald-700 mt-1">
-                              ➔ HPP Baru Menjadi: {formatRupiah(simulatedWAC)} / {selectedRawForRestock.unit}
+                              ➔ HPP Resep Baru: {formatRupiah(simulatedWAC)} /{baseUnit}
+                              {packSize > 1 ? (
+                                <span className="text-[11px] text-slate-600 font-normal ml-1.5">
+                                  (≈ {formatRupiah(simulatedPackWAC)} /{buyUnit})
+                                </span>
+                              ) : null}
                             </div>
                           </div>
                         </label>
@@ -1489,10 +1802,10 @@ export default function StockManagementPage() {
                           <div className="flex-1">
                             <div className="font-bold text-slate-900">Gunakan Harga Pembelian Terakhir (Latest Price)</div>
                             <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                              Langsung mengganti HPP bahan baku mengikuti harga beli terbaru dari vendor.
+                              Langsung mengganti HPP bahan baku mengikuti harga beli vendor saat ini.
                             </p>
                             <div className="text-xs font-black text-amber-700 mt-1">
-                              ➔ HPP Baru Menjadi: {formatRupiah(currentEnteredPrice)} / {selectedRawForRestock.unit}
+                              ➔ HPP Baru: {formatRupiah(effectiveUnitPrice)} /{baseUnit}
                             </div>
                           </div>
                         </label>
@@ -1559,7 +1872,7 @@ export default function StockManagementPage() {
                       className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md transition cursor-pointer disabled:bg-slate-300 flex items-center gap-2"
                     >
                       <CheckCircle2 className="h-4 w-4" />
-                      <span>{submittingRestockRaw ? "Menyimpan Restok..." : "Simpan Restok & Perbarui HPP"}</span>
+                      <span>{submittingRestockRaw ? "Menyimpan..." : "Simpan Restok"}</span>
                     </button>
                   </div>
                 </form>
@@ -1768,9 +2081,19 @@ export default function StockManagementPage() {
                                 </td>
                                 <td className="py-3 px-3.5 text-right font-bold text-emerald-600">
                                   +{hist.changeQty} {selectedRawForPriceHistory.unit}
+                                  {hist.packQty ? (
+                                    <span className="block text-[10px] font-normal text-slate-500">
+                                      ({hist.packQty} {hist.buyUnit || "pack"})
+                                    </span>
+                                  ) : null}
                                 </td>
                                 <td className="py-3 px-3.5 text-right font-black text-slate-900">
                                   {hist.purchasePrice ? formatRupiah(hist.purchasePrice) : "-"}
+                                  {hist.packPrice ? (
+                                    <span className="block text-[10px] font-normal text-slate-500">
+                                      ({formatRupiah(hist.packPrice)} /{hist.buyUnit || "pack"})
+                                    </span>
+                                  ) : null}
                                 </td>
                                 <td className="py-3 px-3.5 text-center">
                                   {isNaik ? (
@@ -1885,7 +2208,7 @@ export default function StockManagementPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Batas Min. Alert</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Batas Min. Alert ({editRawUnit})</label>
                   <input
                     type="number"
                     step="any"
@@ -1896,7 +2219,7 @@ export default function StockManagementPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Biaya / Unit (Rp)</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">HPP per {editRawUnit} (Rp)</label>
                   <input
                     type="number"
                     step="any"
@@ -1905,6 +2228,69 @@ export default function StockManagementPage() {
                     className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-bold text-slate-900"
                   />
                 </div>
+              </div>
+
+              {/* Data Kemasan Pembelian */}
+              <div className="p-3.5 rounded-2xl bg-amber-50/40 border border-amber-200/80 space-y-2.5">
+                <div className="text-[11px] font-bold text-amber-950 flex items-center gap-1.5">
+                  <Package className="h-3.5 w-3.5 text-amber-600" />
+                  <span>Pengaturan Kemasan Pembelian (Pack/Karton)</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 block mb-1">Kemasan Beli</label>
+                    <input
+                      type="text"
+                      value={editRawBuyUnit}
+                      onChange={(e) => setEditRawBuyUnit(e.target.value)}
+                      placeholder="pack / karton"
+                      className="w-full text-xs p-2 rounded-xl border border-slate-300 font-semibold text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 block mb-1">Isi ({editRawUnit})</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={editRawPackSize}
+                      onChange={(e) => {
+                        const newSize = e.target.value;
+                        setEditRawPackSize(newSize);
+                        const p = parseFloat(editRawPackPrice);
+                        const s = parseFloat(newSize);
+                        if (p > 0 && s > 0) {
+                          setEditRawCostPerUnit((p / s).toFixed(2));
+                        }
+                      }}
+                      placeholder="1000"
+                      className="w-full text-xs p-2 rounded-xl border border-slate-300 font-bold text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 block mb-1">Harga / {editRawBuyUnit || "pack"}</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={editRawPackPrice}
+                      onChange={(e) => {
+                        const newPrice = e.target.value;
+                        setEditRawPackPrice(newPrice);
+                        const p = parseFloat(newPrice);
+                        const s = parseFloat(editRawPackSize);
+                        if (p > 0 && s > 0) {
+                          setEditRawCostPerUnit((p / s).toFixed(2));
+                        }
+                      }}
+                      placeholder="Contoh: 19500"
+                      className="w-full text-xs p-2 rounded-xl border border-slate-300 font-bold text-slate-900"
+                    />
+                  </div>
+                </div>
+                {parseFloat(editRawPackPrice) > 0 && parseFloat(editRawPackSize) > 0 && (
+                  <div className="text-[10px] text-amber-800 font-medium">
+                    💡 HPP otomatis terhitung: {formatRupiah(parseFloat(editRawPackPrice) / parseFloat(editRawPackSize))} /{editRawUnit}
+                  </div>
+                )}
               </div>
 
               <div>

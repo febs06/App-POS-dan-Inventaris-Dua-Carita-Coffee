@@ -167,7 +167,10 @@ model RawMaterial {
   unit              String   @default("gram") // gram, ml, pcs, kg, liter, botol, pack
   minStock          Float    @default(10)
   costPerUnit       Float    @default(0) // HPP per satuan (Weighted Moving Average)
-  lastPurchasePrice Float?   // Harga beli satuan terakhir dari supplier
+  lastPurchasePrice Float?   // Harga beli satuan (per gram/ml) terakhir dari supplier
+  buyUnit           String?  @default("pack") // Kemasan pembelian: pack, dus, botol, karton, jerigen, bag
+  packSize          Float?   @default(1000)   // Isi per kemasan dalam satuan dasar (misal: 1000 gram, 1000 ml, 50 pcs)
+  lastPackPrice     Float?   // Harga beli per 1 pack/kemasan terakhir dari supplier (misal: Rp 150.000 / pack)
   supplier          String?  // Nama vendor / supplier utama atau terakhir
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -180,10 +183,13 @@ model RawMaterial {
 model RawMaterialLog {
   id               String      @id @default(cuid())
   rawMaterialId    String
-  changeQty        Float       // Positif masuk/restock, negatif keluar/pemakaian
+  changeQty        Float       // Positif masuk/restock, negatif keluar/pemakaian (dalam satuan dasar gram/ml/pcs)
   type             String      // restock, pemakaian, rusak, koreksi
-  purchasePrice    Float?      // Harga beli per satuan saat restok
-  totalCost        Float?      // Total nominal biaya pembelian = changeQty * purchasePrice
+  purchasePrice    Float?      // Harga beli per satuan dasar (gram/ml) saat restok
+  packQty          Float?      // Jumlah pack yang dibeli saat restok (misal: 3 pack)
+  packPrice        Float?      // Harga beli per pack saat restok (misal: Rp 19.500 / pack)
+  packSize         Float?      // Konversi isi per pack saat restok (misal: 1000 ml)
+  totalCost        Float?      // Total nominal biaya pembelian = packQty * packPrice atau changeQty * purchasePrice
   supplierName     String?     // Nama vendor / supplier saat transaksi restok
   prevCostPerUnit  Float?      // HPP atau harga beli sebelumnya untuk tracking fluktuasi
   priceDiff        Float?      // Selisih harga: purchasePrice - prevCostPerUnit

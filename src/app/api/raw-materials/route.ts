@@ -93,7 +93,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, category, stock, unit, minStock, costPerUnit, supplier } = body;
+    const { name, category, stock, unit, minStock, costPerUnit, supplier, buyUnit, packSize, lastPackPrice } = body;
 
     if (!name || !unit) {
       return NextResponse.json(
@@ -103,6 +103,13 @@ export async function POST(req: Request) {
     }
 
     const initialStock = parseFloat(stock) || 0;
+    const parsedPackSize = parseFloat(packSize) || (unit === "gram" || unit === "ml" ? 1000 : 1);
+    const parsedPackPrice = lastPackPrice ? parseFloat(lastPackPrice) : null;
+    let initialCostPerUnit = parseFloat(costPerUnit) || 0;
+
+    if (initialCostPerUnit === 0 && parsedPackPrice && parsedPackSize > 0) {
+      initialCostPerUnit = Math.round((parsedPackPrice / parsedPackSize) * 100) / 100;
+    }
 
     const material = await prisma.rawMaterial.create({
       data: {
@@ -111,7 +118,11 @@ export async function POST(req: Request) {
         stock: initialStock,
         unit: unit.trim(),
         minStock: parseFloat(minStock) || 10,
-        costPerUnit: parseFloat(costPerUnit) || 0,
+        costPerUnit: initialCostPerUnit,
+        lastPurchasePrice: initialCostPerUnit > 0 ? initialCostPerUnit : null,
+        buyUnit: buyUnit?.trim() || "pack",
+        packSize: parsedPackSize,
+        lastPackPrice: parsedPackPrice,
         supplier: supplier?.trim() || "",
       },
     });
@@ -123,6 +134,8 @@ export async function POST(req: Request) {
           changeQty: initialStock,
           type: "restock",
           notes: "Saldo stok awal pendaftaran bahan",
+          purchasePrice: initialCostPerUnit > 0 ? initialCostPerUnit : null,
+          totalCost: initialCostPerUnit > 0 ? Math.round(initialStock * initialCostPerUnit) : null,
         },
       });
     }
@@ -137,10 +150,18 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { id, name, category, unit, minStock, costPerUnit, supplier } = body;
+    const { id, name, category, unit, minStock, costPerUnit, supplier, buyUnit, packSize, lastPackPrice } = body;
 
     if (!id) {
       return NextResponse.json({ error: "ID bahan baku diperlukan" }, { status: 400 });
+    }
+
+    const parsedPackSize = packSize !== undefined ? parseFloat(packSize) : undefined;
+    const parsedPackPrice = lastPackPrice !== undefined ? (lastPackPrice ? parseFloat(lastPackPrice) : null) : undefined;
+    let computedCostPerUnit = costPerUnit !== undefined ? parseFloat(costPerUnit) : undefined;
+
+    if ((computedCostPerUnit === undefined || computedCostPerUnit === 0) && parsedPackPrice && parsedPackSize && parsedPackSize > 0) {
+      computedCostPerUnit = Math.round((parsedPackPrice / parsedPackSize) * 100) / 100;
     }
 
     const updated = await prisma.rawMaterial.update({
@@ -150,8 +171,11 @@ export async function PUT(req: Request) {
         category: category !== undefined ? category.trim() : undefined,
         unit: unit !== undefined ? unit.trim() : undefined,
         minStock: minStock !== undefined ? parseFloat(minStock) : undefined,
-        costPerUnit: costPerUnit !== undefined ? parseFloat(costPerUnit) : undefined,
+        costPerUnit: computedCostPerUnit !== undefined ? computedCostPerUnit : undefined,
         supplier: supplier !== undefined ? supplier.trim() : undefined,
+        buyUnit: buyUnit !== undefined ? buyUnit.trim() : undefined,
+        packSize: parsedPackSize,
+        lastPackPrice: parsedPackPrice,
       },
     });
 
