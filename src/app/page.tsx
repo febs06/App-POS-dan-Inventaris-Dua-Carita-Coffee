@@ -29,6 +29,7 @@ export default function DashboardPage() {
   const [pendingPO, setPendingPO] = useState<any[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [topProducts, setTopProducts] = useState<any[]>([]);
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<any>(null);
 
   useEffect(() => {
@@ -48,6 +49,7 @@ export default function DashboardPage() {
         if (d.pendingPO) setPendingPO(d.pendingPO);
         if (d.recentOrders) setRecentOrders(d.recentOrders);
         if (d.lowStockProducts) setLowStockProducts(d.lowStockProducts);
+        if (d.topProducts) setTopProducts(d.topProducts);
         setLoading(false);
       }
     } catch (e) {}
@@ -88,10 +90,12 @@ export default function DashboardPage() {
         setTodayRevenue(rev);
         setTodayOrdersCount(count);
 
-        // Filter PO yang belum selesai (pending, diproses, siap diambil)
-        unfulfilledPO = activeOrders.filter(
-          (o: any) => o.orderSource === "PO" && o.status !== "selesai" && o.status !== "dibatalkan"
-        );
+        // Filter PO yang belum selesai (pending, diproses, siap diambil) - FIFO: tertua di urutan pertama
+        unfulfilledPO = activeOrders
+          .filter(
+            (o: any) => o.orderSource === "PO" && o.status !== "selesai" && o.status !== "dibatalkan"
+          )
+          .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         recent = activeOrders.slice(0, 6);
         setPendingPO(unfulfilledPO.slice(0, 5));
         setRecentOrders(recent);
@@ -106,6 +110,19 @@ export default function DashboardPage() {
         setLowStockProducts(lowStock);
       }
 
+      // 4. Fetch Top 8 Products (agregasi varian) dari Analytics
+      let topProds: any[] = [];
+      try {
+        const anRes = await fetch("/api/analytics?range=30");
+        if (anRes.ok) {
+          const anData = await anRes.json();
+          if (Array.isArray(anData.topProducts)) {
+            topProds = anData.topProducts.slice(0, 8);
+            setTopProducts(topProds);
+          }
+        }
+      } catch (e) {}
+
       // Simpan ke cache untuk navigasi berikutnya
       sessionStorage.setItem(
         "dashboard_cache",
@@ -117,6 +134,7 @@ export default function DashboardPage() {
           pendingPO: unfulfilledPO.slice(0, 5),
           recentOrders: recent,
           lowStockProducts: lowStock,
+          topProducts: topProds,
         })
       );
     } catch (error) {
@@ -438,6 +456,72 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
+      </div>
+
+      {/* Top 8 Produk Terlaris */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="font-bold text-base text-slate-900">Top 8 Produk Terlaris</h2>
+              <p className="text-xs text-slate-500">Agregasi penjualan semua varian/ukuran (30 hari terakhir)</p>
+            </div>
+          </div>
+          <Link
+            href="/analytics"
+            className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1"
+          >
+            Lihat Detail Analitik <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
+
+        {topProducts.length === 0 ? (
+          <div className="py-8 text-center text-xs text-slate-400">
+            Belum ada data penjualan produk dalam rentang waktu ini.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {topProducts.map((prod, index) => {
+              const rankColor =
+                index === 0
+                  ? "bg-amber-400 text-slate-950 font-black shadow-xs"
+                  : index === 1
+                  ? "bg-slate-300 text-slate-800 font-bold"
+                  : index === 2
+                  ? "bg-amber-700 text-white font-bold"
+                  : "bg-slate-100 text-slate-600 font-semibold";
+
+              return (
+                <div
+                  key={prod.name}
+                  className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 hover:border-amber-300 transition flex items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className={`h-6 w-6 rounded-lg flex items-center justify-center text-xs shrink-0 ${rankColor}`}>
+                      #{index + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="font-bold text-xs text-slate-800 truncate" title={prod.name}>
+                        {prod.name}
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-medium">
+                        {prod.qty} terjual
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-xs font-extrabold text-slate-900">
+                      {formatRupiah(prod.revenue)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Recent Orders List */}

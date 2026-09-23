@@ -71,7 +71,7 @@ export default function PoManagementPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      let url = "/api/orders?orderSource=PO";
+      let url = "/api/orders?orderSource=PO&sort=asc";
       if (statusFilter !== "all") url += `&status=${statusFilter}`;
       if (paymentFilter !== "all") url += `&paymentStatus=${paymentFilter}`;
 
@@ -474,16 +474,27 @@ export default function PoManagementPage() {
                   <div className="flex flex-wrap items-center gap-1.5">
                     {/* Status Workflow select */}
                     {!isVoided && order.status !== "selesai" && (
-                      <select
-                        value={order.status}
-                        onChange={(e) => handleUpdateStatus(order.id, e.target.value)}
-                        className="text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg px-2 py-1 focus:outline-none"
-                      >
-                        <option value="pending">Menunggu</option>
-                        <option value="diproses">Diproses</option>
-                        <option value="siap diambil">Siap Diambil</option>
-                        <option value="selesai">Selesai</option>
-                      </select>
+                      <div className="flex items-center gap-1">
+                        <select
+                          value={order.status}
+                          onChange={(e) => handleUpdateStatus(order.id, e.target.value)}
+                          className="text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg px-2 py-1 focus:outline-none"
+                        >
+                          <option value="pending">Menunggu</option>
+                          <option value="diproses">Diproses</option>
+                          <option value="siap diambil">Siap Diambil</option>
+                          <option value="selesai">Selesai</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateStatus(order.id, "selesai")}
+                          className="px-2 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1 shadow-xs transition cursor-pointer"
+                          title="Tandai pesanan selesai"
+                        >
+                          <CheckCircle className="h-3 w-3" />
+                          <span>Selesai</span>
+                        </button>
+                      </div>
                     )}
 
                     {/* Catat Pelunasan DP */}

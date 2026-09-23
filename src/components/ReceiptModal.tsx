@@ -122,7 +122,7 @@ ${
     : ""
 }
 ----------------------------------------
-${storeSetting.receiptFooter || "Terima kasih telah memesan di booth kami! 🙏✨"}`;
+${storeSetting.phoneNumber ? `*Hubungi Kami (WhatsApp): ${storeSetting.phoneNumber}*\n` : ""}${storeSetting.receiptFooter || "Terima kasih telah memesan di booth kami! 🙏✨"}`;
 
   // Gunakan API resmi api.whatsapp.com/send agar tidak error jika nomor HP kosong
   const whatsappUrl = cleanPhone
@@ -210,8 +210,8 @@ ${storeSetting.receiptFooter || "Terima kasih telah memesan di booth kami! 🙏�
               </p>
             )}
             {storeSetting.phoneNumber && (
-              <p className="text-[10px] text-slate-500 font-sans">
-                WA: {storeSetting.phoneNumber}
+              <p className="text-[11px] font-bold text-slate-800 font-sans mt-0.5">
+                WA Order / CS: {storeSetting.phoneNumber}
               </p>
             )}
             {order.event && (
@@ -343,7 +343,12 @@ ${storeSetting.receiptFooter || "Terima kasih telah memesan di booth kami! 🙏�
 
           {/* Footer Note */}
           <div className="text-center pt-3 text-[10px] text-slate-600 font-sans leading-relaxed border-t border-dashed border-slate-400 mt-2">
-            {storeSetting.receiptFooter || "Terima kasih atas kunjungan Anda!"}
+            <div>{storeSetting.receiptFooter || "Terima kasih atas kunjungan Anda!"}</div>
+            {storeSetting.phoneNumber && (
+              <div className="font-bold text-slate-800 mt-1">
+                WhatsApp Usaha: {storeSetting.phoneNumber}
+              </div>
+            )}
           </div>
         </div>
 

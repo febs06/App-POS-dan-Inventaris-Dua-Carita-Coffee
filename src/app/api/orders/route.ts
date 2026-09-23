@@ -54,9 +54,19 @@ export async function GET(req: NextRequest) {
       ];
     }
 
+    const sortParam = searchParams.get("sort");
+    const sortDirection: "asc" | "desc" =
+      sortParam === "asc"
+        ? "asc"
+        : sortParam === "desc"
+        ? "desc"
+        : status === "diproses" || status === "pending"
+        ? "asc"
+        : "desc";
+
     const orders = await prisma.order.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: sortDirection },
       include: {
         customer: true,
         event: true,
@@ -227,15 +237,9 @@ export async function POST(req: NextRequest) {
     const finalTax = Number(tax || 0);
     const totalAmount = Math.max(0, serverSubtotal - validatedDiscount + finalTax);
 
-    // Tentukan status awal order
-    // Jika DIRECT: kasir bisa memilih "selesai" atau "diproses" (antre). Default: "selesai".
-    // Jika PO: default "pending".
-    let initialStatus = "selesai";
-    if (orderSource === "PO") {
-      initialStatus = status || "pending";
-    } else {
-      initialStatus = status || "selesai";
-    }
+    // Tentukan status awal order: default selalu "diproses" (Sedang Diproses)
+    // Status baru berubah ke "selesai" setelah ada aksi eksplisit dari kasir/admin
+    let initialStatus = status || "diproses";
 
     // Kasir name: prioritaskan session resmi, fallback ke body
     const finalCashierName = session ? session.name : bodyCashierName || "Kasir Booth";

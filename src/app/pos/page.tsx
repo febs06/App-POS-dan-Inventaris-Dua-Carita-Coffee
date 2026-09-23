@@ -66,7 +66,7 @@ export default function PosPage() {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "qris" | "transfer">("cash");
   const [cashGiven, setCashGiven] = useState<number>(0);
   const [customerName, setCustomerName] = useState<string>("");
-  const [orderStatus, setOrderStatus] = useState<"selesai" | "diproses">("selesai");
+  const [orderStatus, setOrderStatus] = useState<"selesai" | "diproses">("diproses");
   const [processingOrder, setProcessingOrder] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<any>(null);
 
@@ -339,7 +339,7 @@ export default function PosPage() {
       setIsCheckoutOpen(false);
       clearCart();
       setCustomerName("");
-      setOrderStatus("selesai");
+      setOrderStatus("diproses");
       // Reload products to refresh stock
       loadInitialData();
     } catch (err: any) {

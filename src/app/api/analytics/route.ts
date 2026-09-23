@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { normalizeProductName } from "@/lib/format";
 
 export async function GET(req: NextRequest) {
   try {
@@ -94,12 +95,13 @@ export async function GET(req: NextRequest) {
     });
     const eventComparison = Object.values(eventMap).sort((a, b) => b.revenue - a.revenue);
 
-    // 5. Produk Terlaris (Top 8)
+    // 5. Produk Terlaris (Top 8 - Agregasi nama dasar tanpa varian ukuran)
     const productMap: Record<string, { name: string; qty: number; revenue: number }> = {};
     orders.forEach((o) => {
       o.items.forEach((item) => {
         if (!item.isVoided) {
-          const pName = item.product?.name || "Produk";
+          const rawName = item.product?.name || "Produk";
+          const pName = normalizeProductName(rawName);
           if (!productMap[pName]) {
             productMap[pName] = { name: pName, qty: 0, revenue: 0 };
           }

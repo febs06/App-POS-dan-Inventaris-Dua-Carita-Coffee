@@ -172,6 +172,7 @@ model RawMaterial {
   updatedAt   DateTime @updatedAt
 
   logs               RawMaterialLog[]
+  opnames            StockOpname[]
   productIngredients ProductIngredient[]
 }
 
@@ -181,6 +182,19 @@ model RawMaterialLog {
   changeQty     Float       // Positif masuk/restock, negatif keluar/pemakaian
   type          String      // restock, pemakaian, rusak, koreksi
   notes         String?
+  createdAt     DateTime    @default(now())
+
+  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id], onDelete: Cascade)
+}
+
+model StockOpname {
+  id            String      @id @default(cuid())
+  rawMaterialId String
+  systemStock   Float
+  physicalStock Float
+  difference    Float       // physicalStock - systemStock
+  notes         String?
+  opnameDate    DateTime    @default(now())
   createdAt     DateTime    @default(now())
 
   rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id], onDelete: Cascade)

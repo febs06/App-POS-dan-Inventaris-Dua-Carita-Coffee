@@ -59,3 +59,21 @@ export function getPaymentBadge(paymentStatus: "lunas" | "dp" | "belum_bayar" | 
       return { label: "Belum Bayar", bg: "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border-rose-300 dark:border-rose-800" };
   }
 }
+
+/**
+ * Normalisasi nama produk untuk agregasi Top Bestseller
+ * Menghapus varian ukuran (250ml, 500ml, 1 Liter, Cup, Botol, dll)
+ * sehingga produk dengan nama dasar sama tergabung penjualannya.
+ */
+export function normalizeProductName(name: string | null | undefined): string {
+  if (!name) return "Produk";
+  return name
+    .replace(/\s*\(\s*\d+\s*(ml|l|liter|oz|gram|g|kg|pcs).*?\)/gi, "")
+    .replace(/\s*-\s*\d+\s*(ml|l|liter|oz|gram|g|kg).*$/gi, "")
+    .replace(/\s*\b\d+\s*(ml|l|liter|oz|gram|g|kg)\b/gi, "")
+    .replace(/\s*\((cup|botol|dine in|takeaway|dingin|panas|hot|ice)\)/gi, "")
+    .replace(/\s*[-–—]\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
