@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, normalizeProductName } from "@/lib/format";
 import {
   Search,
   ShoppingCart,
@@ -17,8 +17,10 @@ import {
   QrCode,
   Banknote,
   Percent,
+  Coffee,
 } from "lucide-react";
 import ReceiptModal from "@/components/ReceiptModal";
+import PosProductModal from "@/components/PosProductModal";
 
 interface Product {
   id: string;
@@ -51,6 +53,13 @@ export default function PosPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Product Order Modal state (Fast Direct Order Input)
+  const [modalProduct, setModalProduct] = useState<Product | null>(null);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [editingCartItemIndex, setEditingCartItemIndex] = useState<number | null>(null);
+  const [modalInitialQty, setModalInitialQty] = useState(1);
+  const [modalInitialNotes, setModalInitialNotes] = useState("");
 
   // Discount & Voucher state
   const [discountType, setDiscountType] = useState<"voucher" | "manual">("voucher");
@@ -166,73 +175,81 @@ export default function PosPage() {
 
   const totalAmount = Math.max(0, subtotal - discountAmount);
 
-  // Cart actions
-  const addToCart = (product: Product) => {
-    if (product.stock <= 0) return;
-    if (product.isAvailableByIngredients === false) {
-      const missingList = product.missingIngredients?.map((m) => m.name).join(", ") || "Bahan baku habis";
-      alert(`Menu "${product.name}" tidak dapat dipesan karena stok bahan baku tidak mencukupi (${missingList})!`);
-      return;
-    }
+  // Cart & Modal actions
+  const handleOpenProductModal = (product: Product) => {
+    setModalProduct(product);
+    setModalInitialQty(1);
+    setModalInitialNotes("");
+    setEditingCartItemIndex(null);
+    setIsProductModalOpen(true);
+  };
 
-    const effectiveStock =
-      product.maxProducible !== undefined && product.maxProducible !== null
-        ? Math.min(product.stock, product.maxProducible)
-        : product.stock;
+  const handleEditCartItem = (item: CartItem, index: number) => {
+    setModalProduct(item.product);
+    setModalInitialQty(item.qty);
+    setModalInitialNotes(item.notes || "");
+    setEditingCartItemIndex(index);
+    setIsProductModalOpen(true);
+  };
 
-    if (effectiveStock <= 0) {
-      alert(`Stok bahan baku untuk "${product.name}" tidak mencukupi untuk membuat 1 porsi.`);
-      return;
-    }
-
+  const handleAddToCartFromModal = (product: Product, qty: number, notes: string) => {
     setCart((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
-      if (existing) {
-        if (existing.qty >= effectiveStock) {
-          alert(`Maksimal pesanan ${product.name} yang dapat dibuat saat ini adalah ${effectiveStock} ${product.unit}`);
-          return prev;
-        }
-        return prev.map((item) =>
-          item.product.id === product.id ? { ...item, qty: item.qty + 1 } : item
-        );
+      // If editing an existing item in cart
+      if (
+        editingCartItemIndex !== null &&
+        editingCartItemIndex >= 0 &&
+        editingCartItemIndex < prev.length
+      ) {
+        const nextCart = [...prev];
+        nextCart[editingCartItemIndex] = { product, qty, notes };
+        return nextCart;
       }
-      return [...prev, { product, qty: 1, notes: "" }];
+
+      // Check if product with same notes already exists in cart
+      const existingIndex = prev.findIndex(
+        (item) => item.product.id === product.id && (item.notes || "") === (notes || "")
+      );
+
+      if (existingIndex > -1) {
+        const nextCart = [...prev];
+        nextCart[existingIndex] = {
+          ...nextCart[existingIndex],
+          qty: nextCart[existingIndex].qty + qty,
+        };
+        return nextCart;
+      }
+
+      return [...prev, { product, qty, notes }];
+    });
+    setEditingCartItemIndex(null);
+  };
+
+  const updateQty = (index: number, delta: number) => {
+    setCart((prev) => {
+      const item = prev[index];
+      if (!item) return prev;
+      const newQty = item.qty + delta;
+      if (newQty <= 0) {
+        return prev.filter((_, i) => i !== index);
+      }
+      const nextCart = [...prev];
+      nextCart[index] = { ...item, qty: newQty };
+      return nextCart;
     });
   };
 
-  const updateQty = (productId: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((item) => {
-          if (item.product.id === productId) {
-            const newQty = item.qty + delta;
-            const effectiveStock =
-              item.product.maxProducible !== undefined && item.product.maxProducible !== null
-                ? Math.min(item.product.stock, item.product.maxProducible)
-                : item.product.stock;
-
-            if (newQty > effectiveStock) {
-              alert(`Maksimal ${effectiveStock} ${item.product.unit} dapat dibuat berdasarkan stok produk dan bahan baku saat ini.`);
-              return item;
-            }
-            return newQty > 0 ? { ...item, qty: newQty } : null;
-          }
-          return item;
-        })
-        .filter(Boolean) as CartItem[]
-    );
+  const updateItemNotes = (index: number, notes: string) => {
+    setCart((prev) => {
+      const nextCart = [...prev];
+      if (nextCart[index]) {
+        nextCart[index] = { ...nextCart[index], notes };
+      }
+      return nextCart;
+    });
   };
 
-  const updateItemNotes = (productId: string, notes: string) => {
-    setCart((prev) =>
-      prev.map((item) =>
-        item.product.id === productId ? { ...item, notes } : item
-      )
-    );
-  };
-
-  const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((item) => item.product.id !== productId));
+  const removeFromCart = (index: number) => {
+    setCart((prev) => prev.filter((_, i) => i !== index));
   };
 
   const clearCart = () => {
@@ -276,6 +293,44 @@ export default function PosPage() {
       p.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchCat && matchSearch;
   });
+
+  // Group products by base name for fast, clean, organized cashier menu
+  const displayProducts = useMemo(() => {
+    // If user is searching specific term, show direct matching products
+    if (searchQuery.trim()) {
+      return filteredProducts.map((p) => ({
+        ...p,
+        displayName: p.name,
+        isGrouped: false,
+        variantCount: 1,
+        minPrice: p.price,
+        maxPrice: p.price,
+        allVariants: [p],
+      }));
+    }
+
+    // Group by base name (e.g. Aren Coffee Milk, Choco Blend Coffee, etc.)
+    const groups = new Map<string, Product[]>();
+    filteredProducts.forEach((p) => {
+      const base = normalizeProductName(p.name);
+      if (!groups.has(base)) groups.set(base, []);
+      groups.get(base)!.push(p);
+    });
+
+    return Array.from(groups.entries()).map(([baseName, variants]) => {
+      const sorted = [...variants].sort((a, b) => a.price - b.price);
+      const rep = sorted[0];
+      return {
+        ...rep,
+        displayName: baseName,
+        isGrouped: variants.length > 1,
+        variantCount: variants.length,
+        minPrice: sorted[0].price,
+        maxPrice: sorted[sorted.length - 1].price,
+        allVariants: variants,
+      };
+    });
+  }, [filteredProducts, searchQuery]);
 
   // Open Checkout
   const handleOpenCheckout = () => {
@@ -415,56 +470,73 @@ export default function PosPage() {
           {/* Product Grid */}
           {loading ? (
             <div className="p-12 text-center text-xs text-slate-400">Memuat katalog menu...</div>
-          ) : filteredProducts.length === 0 ? (
+          ) : displayProducts.length === 0 ? (
             <div className="p-12 text-center text-xs text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
               Tidak ada produk yang cocok dengan pencarian.
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-3.5">
-              {filteredProducts.map((p) => {
-                const inCart = cart.find((item) => item.product.id === p.id);
+              {displayProducts.map((p) => {
+                const baseName = normalizeProductName(p.name);
+                const totalInCart = cart
+                  .filter(
+                    (item) => normalizeProductName(item.product.name) === baseName
+                  )
+                  .reduce((sum, item) => sum + item.qty, 0);
+
                 const isRawMissing = p.isAvailableByIngredients === false;
                 const effectiveStock =
                   p.maxProducible !== undefined && p.maxProducible !== null
                     ? Math.min(p.stock, p.maxProducible)
                     : p.stock;
-                const isOutOfStock = p.stock <= 0 || isRawMissing || effectiveStock <= 0;
+                const isOutOfStock = p.stock <= 0 && isRawMissing;
+
+                const priceDisplay =
+                  p.isGrouped && p.minPrice !== p.maxPrice
+                    ? `Mulai ${formatRupiah(p.minPrice)}`
+                    : formatRupiah(p.price);
 
                 return (
                   <button
                     key={p.id}
-                    disabled={isOutOfStock}
-                    onClick={() => addToCart(p)}
-                    className={`relative p-3 rounded-2xl bg-white border text-left flex flex-col justify-between transition group shadow-xs ${
+                    type="button"
+                    onClick={() => handleOpenProductModal(p)}
+                    className={`relative p-3 rounded-2xl bg-white border text-left flex flex-col justify-between transition group shadow-xs cursor-pointer ${
                       isOutOfStock
-                        ? "opacity-60 grayscale-[30%] cursor-not-allowed border-rose-200 bg-rose-50/20"
-                        : inCart
-                        ? "border-amber-400 ring-2 ring-amber-400/20 shadow-md"
-                        : "border-slate-200/80 hover:border-amber-400 hover:shadow-md"
+                        ? "opacity-60 grayscale-[30%] border-rose-200 bg-rose-50/20"
+                        : totalInCart > 0
+                        ? "border-[#803838] ring-2 ring-[#803838]/20 shadow-md"
+                        : "border-slate-200/80 hover:border-[#803838] hover:shadow-md"
                     }`}
                   >
-                    {/* Badge Stock */}
+                    {/* Badge Stock & Category */}
                     <div className="flex items-center justify-between gap-1 mb-2">
                       <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 truncate">
                         {p.category?.name}
                       </span>
-                      <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                          isRawMissing
-                            ? "bg-rose-100 text-rose-800 border border-rose-300 font-black"
-                            : isOutOfStock
-                            ? "bg-rose-100 text-rose-700"
-                            : effectiveStock <= 5
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        {isRawMissing
-                          ? "Bahan Habis"
-                          : isOutOfStock
-                          ? "Habis"
-                          : `${effectiveStock} ${p.unit}`}
-                      </span>
+                      {p.isGrouped ? (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#fdf2f0] text-[#803838] border border-[#803838]/20">
+                          {p.variantCount} Varian
+                        </span>
+                      ) : (
+                        <span
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                            isRawMissing
+                              ? "bg-rose-100 text-rose-800 border border-rose-300 font-black"
+                              : p.stock <= 0
+                              ? "bg-rose-100 text-rose-700"
+                              : effectiveStock <= 5
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {isRawMissing
+                            ? "Bahan Habis"
+                            : p.stock <= 0
+                            ? "Habis"
+                            : `${effectiveStock} ${p.unit}`}
+                        </span>
+                      )}
                     </div>
 
                     {/* Image Placeholder or Actual Image */}
@@ -472,53 +544,33 @@ export default function PosPage() {
                       <div className="relative w-full h-24 mb-2 rounded-xl overflow-hidden bg-slate-100">
                         <img
                           src={p.imageUrl}
-                          alt={p.name}
-                          className={`w-full h-full object-cover transition duration-300 ${
-                            isOutOfStock ? "opacity-60" : "group-hover:scale-105"
-                          }`}
+                          alt={p.displayName || p.name}
+                          className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
                         />
-                        {isRawMissing && (
-                          <div className="absolute inset-0 bg-slate-950/50 flex items-center justify-center p-1">
-                            <span className="text-[10px] font-black uppercase text-white bg-rose-600 px-2 py-0.5 rounded-md shadow-sm">
-                              Bahan Habis
-                            </span>
-                          </div>
-                        )}
                       </div>
                     ) : (
-                      <div
-                        className={`w-full h-24 mb-2 rounded-xl flex items-center justify-center font-bold text-xs relative ${
-                          isOutOfStock
-                            ? "bg-slate-100 text-slate-400"
-                            : "bg-gradient-to-tr from-amber-50 to-orange-100 text-amber-700"
-                        }`}
-                      >
-                        {p.name.slice(0, 2).toUpperCase()}
-                        {isRawMissing && (
-                          <div className="absolute inset-0 bg-slate-950/40 rounded-xl flex items-center justify-center p-1">
-                            <span className="text-[10px] font-black uppercase text-white bg-rose-600 px-2 py-0.5 rounded-md shadow-sm">
-                              Bahan Habis
-                            </span>
-                          </div>
-                        )}
+                      <div className="w-full h-24 mb-2 rounded-xl flex items-center justify-center font-bold text-xs relative bg-gradient-to-tr from-amber-50 to-orange-100 text-amber-800">
+                        <Coffee className="h-7 w-7 text-amber-700/60 mb-0.5" />
                       </div>
                     )}
 
                     <div>
-                      <h4 className="font-bold text-xs text-slate-900 line-clamp-1">{p.name}</h4>
-                      {isRawMissing && p.missingIngredients && p.missingIngredients.length > 0 && (
-                        <p className="text-[10px] font-semibold text-rose-600 line-clamp-1 mt-0.5">
-                          Kurang: {p.missingIngredients.map((m) => m.name).join(", ")}
+                      <h4 className="font-bold text-xs text-slate-900 line-clamp-1">
+                        {p.displayName || p.name}
+                      </h4>
+                      {p.isGrouped && (
+                        <p className="text-[10px] font-medium text-slate-400 line-clamp-1 mt-0.5">
+                          Pilih Botol / Cup & Ukuran
                         </p>
                       )}
-                      <div className="font-black text-sm text-slate-900 mt-1">
-                        {formatRupiah(p.price)}
+                      <div className="font-black text-sm text-[#803838] mt-1">
+                        {priceDisplay}
                       </div>
                     </div>
 
-                    {inCart && (
-                      <div className="mt-2 text-center py-0.5 bg-amber-500 text-slate-950 font-black text-[11px] rounded-lg">
-                        {inCart.qty} di keranjang
+                    {totalInCart > 0 && (
+                      <div className="mt-2 text-center py-1 bg-[#803838] text-white font-black text-[11px] rounded-xl shadow-xs">
+                        {totalInCart} di keranjang
                       </div>
                     )}
                   </button>
@@ -542,7 +594,7 @@ export default function PosPage() {
             {cart.length > 0 && (
               <button
                 onClick={clearCart}
-                className="text-xs text-rose-600 hover:text-rose-700 font-semibold"
+                className="text-xs text-rose-600 hover:text-rose-700 font-semibold cursor-pointer"
               >
                 Kosongkan
               </button>
@@ -554,20 +606,32 @@ export default function PosPage() {
             {cart.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs text-center space-y-2">
                 <ShoppingCart className="h-8 w-8 text-slate-300" />
-                <p>Belum ada produk dipilih.<br />Klik menu di samping untuk menambahkan.</p>
+                <p>Belum ada produk dipilih.<br />Klik menu di samping untuk kustomisasi & tambah.</p>
               </div>
             ) : (
-              cart.map((item) => (
+              cart.map((item, index) => (
                 <div
-                  key={item.product.id}
+                  key={`${item.product.id}-${index}`}
                   className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs"
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div
+                    onClick={() => handleEditCartItem(item, index)}
+                    className="flex items-start justify-between gap-2 cursor-pointer group/item hover:bg-slate-100/60 p-1 rounded-lg transition"
+                    title="Klik untuk ubah ukuran, packaging, atau catatan"
+                  >
                     <div>
-                      <div className="font-bold text-slate-900">{item.product.name}</div>
+                      <div className="font-bold text-slate-900 group-hover/item:text-[#803838] transition flex items-center gap-1.5">
+                        <span>{item.product.name}</span>
+                        <span className="text-[10px] text-slate-400">✎</span>
+                      </div>
                       <div className="text-[11px] text-slate-500">
                         {formatRupiah(item.product.price)} / {item.product.unit}
                       </div>
+                      {item.notes && (
+                        <div className="text-[10px] text-[#702424] bg-[#fceeed] border border-[#803838]/20 rounded-md px-1.5 py-0.5 mt-1 inline-block">
+                          📝 {item.notes}
+                        </div>
+                      )}
                     </div>
                     <div className="font-black text-slate-900">
                       {formatRupiah(item.product.price * item.qty)}
@@ -578,16 +642,16 @@ export default function PosPage() {
                   <input
                     type="text"
                     value={item.notes}
-                    onChange={(e) => updateItemNotes(item.product.id, e.target.value)}
-                    placeholder="Catatan (misal: less sugar / pedas)..."
+                    onChange={(e) => updateItemNotes(index, e.target.value)}
+                    placeholder="Catatan (misal: less sugar, tanpa es)..."
                     className="w-full text-[11px] px-2.5 py-1 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 border border-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
                   />
 
                   {/* Qty Switcher */}
                   <div className="flex items-center justify-between pt-1">
                     <button
-                      onClick={() => removeFromCart(item.product.id)}
-                      className="text-slate-400 hover:text-rose-600 p-1"
+                      onClick={() => removeFromCart(index)}
+                      className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
                       title="Hapus"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -595,15 +659,15 @@ export default function PosPage() {
 
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => updateQty(item.product.id, -1)}
-                        className="h-6 w-6 rounded-md bg-white border border-slate-300 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100"
+                        onClick={() => updateQty(index, -1)}
+                        className="h-6 w-6 rounded-md bg-white border border-slate-300 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                       >
                         <Minus className="h-3 w-3" />
                       </button>
                       <span className="font-bold text-xs w-6 text-center">{item.qty}</span>
                       <button
-                        onClick={() => updateQty(item.product.id, 1)}
-                        className="h-6 w-6 rounded-md bg-white border border-slate-300 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100"
+                        onClick={() => updateQty(index, 1)}
+                        className="h-6 w-6 rounded-md bg-white border border-slate-300 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                       >
                         <Plus className="h-3 w-3" />
                       </button>
@@ -924,6 +988,20 @@ export default function PosPage() {
           </div>
         </div>
       )}
+
+      {/* Product Customization Fast Order Modal */}
+      <PosProductModal
+        isOpen={isProductModalOpen}
+        onClose={() => {
+          setIsProductModalOpen(false);
+          setEditingCartItemIndex(null);
+        }}
+        product={modalProduct}
+        allProducts={products}
+        initialQty={modalInitialQty}
+        initialNotes={modalInitialNotes}
+        onAddToCart={handleAddToCartFromModal}
+      />
 
       {/* Completed Order Receipt Modal */}
       {completedOrder && (
