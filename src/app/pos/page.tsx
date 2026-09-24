@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import { formatRupiah, normalizeProductName } from "@/lib/format";
 import {
@@ -18,6 +19,7 @@ import {
   Banknote,
   Percent,
   Coffee,
+  ShoppingBag,
 } from "lucide-react";
 import ReceiptModal from "@/components/ReceiptModal";
 import PosProductModal from "@/components/PosProductModal";
@@ -425,16 +427,30 @@ export default function PosPage() {
           </select>
         </div>
 
-        {/* Search */}
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari menu / minuman..."
-            className="w-full text-xs pl-9 pr-4 py-2 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
-          />
+        <div className="flex items-center gap-2.5 w-full md:w-auto">
+          {/* Quick link to live bazaar orders */}
+          <Link
+            href="/bazaar-orders"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-900 hover:bg-amber-500/25 text-xs font-black transition shrink-0 shadow-2xs"
+            title="Lihat antrean dan status pesanan bazaar hari ini"
+          >
+            <ShoppingBag className="h-4 w-4 text-amber-600" />
+            <span className="hidden sm:inline">Pesanan Bazaar</span>
+            <span className="sm:hidden">Pesanan</span>
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse ml-0.5" />
+          </Link>
+
+          {/* Search */}
+          <div className="relative flex-1 md:w-64">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari menu / minuman..."
+              className="w-full text-xs pl-9 pr-4 py-2 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
         </div>
       </div>
 

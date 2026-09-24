@@ -4,28 +4,16 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Store,
-  KeyRound,
+  Lock,
+  User,
   Shield,
-  UserCheck,
-  Calendar,
-  AlertCircle,
   Clock,
   ArrowRight,
-  CheckCircle2,
-  ChevronRight,
-  ShieldCheck,
+  AlertCircle,
   Eye,
   EyeOff,
-  Lock,
+  Sparkles,
 } from "lucide-react";
-
-interface Employee {
-  id: string;
-  name: string;
-  username: string;
-  role: string;
-  isActive: boolean;
-}
 
 interface StoreSetting {
   storeName: string;
@@ -41,13 +29,11 @@ interface ActiveEvent {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [selectedEmp, setSelectedEmp] = useState<Employee | null>(null);
-  const [pin, setPin] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true);
   const [storeSetting, setStoreSetting] = useState<StoreSetting>({
     storeName: "Dua Carita Coffee",
     tagline: "Bazaar & Pre-Order System",
@@ -82,25 +68,14 @@ export default function LoginPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch store settings, active event, and employees
+  // Fetch store settings & active event
   useEffect(() => {
     const loadInitialData = async () => {
-      setFetching(true);
       try {
-        const [empRes, settRes, eventRes] = await Promise.all([
-          fetch("/api/employees"),
+        const [settRes, eventRes] = await Promise.all([
           fetch("/api/settings"),
           fetch("/api/events"),
         ]);
-
-        const emps = await empRes.json();
-        if (Array.isArray(emps)) {
-          const active = emps.filter((e: any) => e.isActive);
-          setEmployees(active);
-          if (active.length > 0) {
-            setSelectedEmp(active[0]);
-          }
-        }
 
         const sett = await settRes.json();
         if (sett && sett.storeName) {
@@ -114,59 +89,20 @@ export default function LoginPage() {
         }
       } catch (err) {
         console.error("Failed to load login page data:", err);
-      } finally {
-        setFetching(false);
       }
     };
 
     loadInitialData();
   }, []);
 
-  // Handle Physical Keyboard Input
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key >= "0" && e.key <= "9") {
-        if (pin.length < 6) {
-          setError("");
-          setPin((prev) => prev + e.key);
-        }
-      } else if (e.key === "Backspace") {
-        setError("");
-        setPin((prev) => prev.slice(0, -1));
-      } else if (e.key === "Enter") {
-        if (pin.length >= 4 && selectedEmp && !loading) {
-          submitLogin(selectedEmp, pin);
-        }
-      } else if (e.key === "Escape") {
-        setPin("");
-        setError("");
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [pin, selectedEmp, loading]);
-
-  const handleKeypadPress = (val: string) => {
-    setError("");
-    if (val === "clear") {
-      setPin("");
-    } else if (val === "back") {
-      setPin((prev) => prev.slice(0, -1));
-    } else {
-      if (pin.length < 32) {
-        setPin((prev) => prev + val);
-      }
-    }
-  };
-
-  const submitLogin = async (emp: Employee, pinCode: string) => {
-    if (!emp) {
-      setError("Pilih kasir / staf terlebih dahulu");
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim()) {
+      setError("Username / User ID wajib diisi");
       return;
     }
-    if (!pinCode || pinCode.length < 4) {
-      setError("Masukkan minimal 4 digit PIN");
+    if (!password) {
+      setError("Password wajib diisi");
       return;
     }
 
@@ -178,16 +114,15 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: emp.id,
-          pin: pinCode,
+          username: username.trim(),
+          password: password,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "PIN Kasir salah. Silakan coba lagi.");
-        setPin("");
+        setError(data.error || "Username atau password salah");
         return;
       }
 
@@ -196,9 +131,9 @@ export default function LoginPage() {
       localStorage.setItem("active_cashier", JSON.stringify(data.employee));
       window.dispatchEvent(new Event("cashier-updated"));
 
-      // Direct to POS register
+      // Redirect to POS
       router.push("/pos");
-    } catch (err) {
+    } catch {
       setError("Gagal menghubungi server verifikasi.");
     } finally {
       setLoading(false);
@@ -265,304 +200,123 @@ export default function LoginPage() {
         </div>
       </header>
 
-      {/* Main Kiosk Content Area */}
-      <main className="relative z-10 flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-8 flex flex-col justify-center">
-        {/* Mobile-Only Staff Carousel (Horizontal Pill Bar) */}
-        <div className="lg:hidden space-y-2 mb-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-              <UserCheck className="h-3.5 w-3.5 text-amber-400" />
-              Pilih Staf Bertugas:
-            </span>
-            {selectedEmp && (
-              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                {selectedEmp.role}
-              </span>
-            )}
+      {/* Main Login Form Area */}
+      <main className="relative z-10 flex-1 max-w-md w-full mx-auto px-4 py-8 sm:py-12 flex flex-col justify-center">
+        <div className="bg-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-800 p-6 sm:p-8 shadow-2xl shadow-black/60 space-y-6">
+          <div className="text-center space-y-2">
+            <div className="inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 mb-1 shadow-inner">
+              <Shield className="h-6 w-6" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              Masuk ke Sistem
+            </h2>
+            <p className="text-xs text-slate-400">
+              Silakan masukkan Username dan Password untuk mengakses sistem kasir & inventaris booth
+            </p>
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-1.5 no-scrollbar -mx-1 px-1">
-            {employees.map((emp) => {
-              const isSelected = selectedEmp?.id === emp.id;
-              return (
-                <button
-                  key={emp.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedEmp(emp);
-                    setPin("");
-                    setError("");
+          {error && (
+            <div className="p-3.5 rounded-2xl bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+              <div className="font-medium leading-relaxed">{error}</div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Input Username */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-300 block">
+                Username / User ID
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <User className="h-4 w-4" />
+                </div>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    if (error) setError("");
                   }}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border shrink-0 transition-all cursor-pointer ${
-                    isSelected
-                      ? "bg-amber-500 text-slate-950 font-bold border-amber-400 shadow-md shadow-amber-500/25 ring-1 ring-amber-400"
-                      : "bg-slate-900/80 border-slate-800 text-slate-300 hover:border-slate-700"
-                  }`}
-                >
-                  <div
-                    className={`h-7 w-7 rounded-lg flex items-center justify-center text-xs font-black ${
-                      isSelected ? "bg-slate-950 text-amber-400" : "bg-slate-800 text-slate-300"
-                    }`}
-                  >
-                    {emp.name.substring(0, 2).toUpperCase()}
-                  </div>
-                  <div className="text-left">
-                    <div className="text-xs font-bold leading-tight">{emp.name}</div>
-                    <div className={`text-[10px] ${isSelected ? "text-slate-950 font-medium" : "text-slate-400"}`}>
-                      {emp.role}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
-          {/* Desktop Left Column: Staff Card Selector (Hidden on mobile) */}
-          <div className="hidden lg:block lg:col-span-5 space-y-4">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold mb-2">
-                <Shield className="h-3.5 w-3.5" />
-                <span>Otentikasi Karyawan Booth</span>
+                  placeholder="Contoh: febriansyah / kasir1"
+                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-slate-950/80 border border-slate-700/80 text-white placeholder:text-slate-500 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
+                />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                Pilih Staf Bertugas
-              </h2>
-              <p className="text-sm text-slate-400 mt-1">
-                Pilih profil Anda di bawah ini, lalu ketik PIN otorisasi untuk memulai shift kasir.
-              </p>
             </div>
 
-            {fetching ? (
-              <div className="p-8 rounded-2xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 text-sm">
-                Memuat daftar staf aktif...
-              </div>
-            ) : employees.length === 0 ? (
-              <div className="p-6 rounded-2xl bg-rose-950/30 border border-rose-800/40 text-rose-400 text-sm">
-                Tidak ada staf aktif. Silakan hubungi admin untuk mendaftarkan akun kasir.
-              </div>
-            ) : (
-              <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1.5 custom-scrollbar">
-                {employees.map((emp) => {
-                  const isSelected = selectedEmp?.id === emp.id;
-                  const roleBadgeClass =
-                    emp.role.toUpperCase() === "OWNER"
-                      ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
-                      : emp.role.toUpperCase() === "BARISTA"
-                      ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/30"
-                      : "bg-amber-500/20 text-amber-300 border-amber-500/30";
-
-                  return (
-                    <button
-                      key={emp.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedEmp(emp);
-                        setPin("");
-                        setError("");
-                      }}
-                      className={`w-full p-3 rounded-2xl border text-left transition-all flex items-center justify-between cursor-pointer ${
-                        isSelected
-                          ? "bg-slate-900 border-amber-500 shadow-lg shadow-amber-500/10 ring-1 ring-amber-500/50"
-                          : "bg-slate-900/40 border-slate-800 hover:bg-slate-900/80 hover:border-slate-700 text-slate-300"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`h-10 w-10 rounded-xl flex items-center justify-center font-bold text-sm transition-colors ${
-                            isSelected
-                              ? "bg-amber-500 text-slate-950 font-black shadow-md"
-                              : "bg-slate-800 text-slate-300"
-                          }`}
-                        >
-                          {emp.name.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="font-bold text-sm text-white flex items-center gap-2">
-                            <span>{emp.name}</span>
-                          </div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span
-                              className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${roleBadgeClass}`}
-                            >
-                              {emp.role}
-                            </span>
-                            <span className="text-xs text-slate-500">@{emp.username}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {isSelected ? (
-                        <div className="h-6 w-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center">
-                          <CheckCircle2 className="h-4 w-4" />
-                        </div>
-                      ) : (
-                        <ChevronRight className="h-5 w-5 text-slate-600" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Security note */}
-            <div className="p-3 rounded-xl bg-slate-900/40 border border-slate-800 text-xs text-slate-400 flex items-center gap-2.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span>Sistem Kasir Terenkripsi • Akses Shift Terproteksi PIN</span>
-            </div>
-          </div>
-
-          {/* Right Column: Interactive PIN Pad */}
-          <div className="lg:col-span-7">
-            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-7 shadow-2xl backdrop-blur-xl relative">
-              {/* Selected Profile Indicator */}
-              <div className="flex items-center justify-between pb-4 sm:pb-5 border-b border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
-                    <KeyRound className="h-4 w-4 sm:h-5 sm:w-5" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-slate-400 block font-medium">
-                      Otorisasi Bertugas:
-                    </span>
-                    <span className="text-sm sm:text-base font-black text-white">
-                      {selectedEmp ? selectedEmp.name : "Pilih Karyawan"}
-                    </span>
-                  </div>
+            {/* Input Password */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-300 block">
+                Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <Lock className="h-4 w-4" />
                 </div>
-
-                {selectedEmp && (
-                  <span className="text-xs font-bold uppercase px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">
-                    {selectedEmp.role}
-                  </span>
-                )}
-              </div>
-
-              {/* Password Input Field with Eye Toggle */}
-              <div className="my-4 sm:my-5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <Lock className="h-3.5 w-3.5 text-amber-400" />
-                    <span>Password / PIN Akses</span>
-                  </span>
-                  <span className="text-[11px] text-slate-500 font-mono">
-                    {pin.length > 0 ? `${pin.length} karakter` : "Min. 6-8 Karakter"}
-                  </span>
-                </div>
-
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={pin}
-                    onChange={(e) => {
-                      setError("");
-                      setPin(e.target.value);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && pin.length >= 4 && selectedEmp && !loading) {
-                        submitLogin(selectedEmp, pin);
-                      }
-                    }}
-                    placeholder="Ketik password atau gunakan tombol..."
-                    autoFocus
-                    className="w-full text-center text-lg sm:text-xl font-mono tracking-wider py-3 px-10 rounded-2xl bg-slate-950/80 border border-slate-800 text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all shadow-inner"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition p-1 cursor-pointer"
-                    title={showPassword ? "Sembunyikan" : "Tampilkan"}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-
-                {/* Error Banner */}
-                {error && (
-                  <div className="mt-2.5 p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-                    <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
-                    <span>{error}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Keypad Buttons (3x4 grid) for quick touch / numeric entry */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-2.5 max-w-sm mx-auto">
-                {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
-                  <button
-                    key={num}
-                    type="button"
-                    onClick={() => handleKeypadPress(num)}
-                    className="h-11 sm:h-13 rounded-2xl bg-slate-800/80 hover:bg-slate-700 active:bg-amber-500 active:text-slate-950 border border-slate-700/60 text-white font-black text-xl sm:text-2xl transition-all flex items-center justify-center cursor-pointer shadow-xs active:scale-95"
-                  >
-                    {num}
-                  </button>
-                ))}
-
-                {/* Clear / Reset Button */}
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (error) setError("");
+                  }}
+                  placeholder="Ketik password akun Anda..."
+                  className="w-full pl-10 pr-11 py-3 rounded-2xl bg-slate-950/80 border border-slate-700/80 text-white placeholder:text-slate-500 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
+                />
                 <button
                   type="button"
-                  onClick={() => handleKeypadPress("clear")}
-                  className="h-11 sm:h-13 rounded-2xl bg-slate-800/40 hover:bg-rose-950/40 hover:text-rose-400 border border-slate-700/40 text-slate-400 font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition cursor-pointer"
+                  tabIndex={-1}
                 >
-                  Reset
-                </button>
-
-                {/* 0 Button */}
-                <button
-                  type="button"
-                  onClick={() => handleKeypadPress("0")}
-                  className="h-11 sm:h-13 rounded-2xl bg-slate-800/80 hover:bg-slate-700 active:bg-amber-500 active:text-slate-950 border border-slate-700/60 text-white font-black text-xl sm:text-2xl transition-all flex items-center justify-center cursor-pointer shadow-xs active:scale-95"
-                >
-                  0
-                </button>
-
-                {/* Backspace Button */}
-                <button
-                  type="button"
-                  onClick={() => handleKeypadPress("back")}
-                  className="h-11 sm:h-13 rounded-2xl bg-slate-800/40 hover:bg-slate-700 border border-slate-700/40 text-slate-300 font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer active:scale-95"
-                >
-                  Hapus
-                </button>
-              </div>
-
-              {/* Submit Action */}
-              <div className="mt-5 pt-4 border-t border-slate-800 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => selectedEmp && submitLogin(selectedEmp, pin)}
-                  disabled={loading || pin.length < 4 || !selectedEmp}
-                  className="w-full py-3 sm:py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:bg-slate-800 text-slate-950 disabled:text-slate-500 font-bold text-sm transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <>
-                      <div className="h-4 w-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                      <span>Memverifikasi...</span>
-                    </>
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
                   ) : (
-                    <>
-                      <span>Mulai Shift Kasir</span>
-                      <ArrowRight className="h-4 w-4" />
-                    </>
+                    <Eye className="h-4 w-4" />
                   )}
                 </button>
               </div>
             </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 active:scale-[0.99] text-slate-950 font-black text-sm shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed mt-2"
+            >
+              {loading ? (
+                <>
+                  <div className="h-4 w-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                  <span>Memeriksa Akun...</span>
+                </>
+              ) : (
+                <>
+                  <span>Masuk ke Sistem</span>
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="pt-2 border-t border-slate-800/80 text-center">
+            <p className="text-[11px] text-slate-500">
+              Sistem POS & Inventaris Booth Terintegrasi &bull; Dual-Mode Ready
+            </p>
           </div>
         </div>
       </main>
 
-      {/* Footer System Info */}
-      <footer className="relative z-10 w-full px-4 sm:px-6 py-3 border-t border-slate-800/60 bg-slate-900/40 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-1.5">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Sistem Kiosk POS Online & Terhubung</span>
-        </div>
-        <div>
-          <span>{storeSetting.storeName} &copy; {new Date().getFullYear()}</span>
-        </div>
+      {/* Footer Bar */}
+      <footer className="relative z-10 w-full px-4 sm:px-6 py-3 border-t border-slate-800/60 bg-slate-950/80 text-center text-xs text-slate-500">
+        <p>
+          &copy; {new Date().getFullYear()} {storeSetting.storeName} &bull; Keamanan terenkripsi PBKDF2
+        </p>
       </footer>
     </div>
   );

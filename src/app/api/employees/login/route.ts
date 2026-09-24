@@ -5,33 +5,38 @@ import { verifyPin, hashPin, createSessionToken } from "@/lib/auth";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { id, username, pin } = body;
+    const { id, username, pin, password } = body;
+    const inputPassword = password !== undefined ? password : pin;
 
-    if (!pin) {
-      return NextResponse.json({ error: "PIN wajib dimasukkan" }, { status: 400 });
+    if (!username && !id) {
+      return NextResponse.json({ error: "Username / User ID wajib dimasukkan" }, { status: 400 });
+    }
+
+    if (!inputPassword) {
+      return NextResponse.json({ error: "Password wajib dimasukkan" }, { status: 400 });
     }
 
     let employee = null;
-    if (id) {
-      employee = await prisma.employee.findUnique({ where: { id } });
-    } else if (username) {
+    if (username) {
       employee = await prisma.employee.findUnique({
         where: { username: username.toLowerCase().trim() },
       });
+    } else if (id) {
+      employee = await prisma.employee.findUnique({ where: { id } });
     }
 
     if (!employee) {
-      return NextResponse.json({ error: "Karyawan tidak ditemukan" }, { status: 404 });
+      return NextResponse.json({ error: "Username atau akun tidak ditemukan" }, { status: 404 });
     }
 
     if (!employee.isActive) {
-      return NextResponse.json({ error: "Akun karyawan ini sedang nonaktif" }, { status: 403 });
+      return NextResponse.json({ error: "Akun ini sedang dinonaktifkan oleh admin" }, { status: 403 });
     }
 
-    // Verify PIN against pinHash or legacy plaintext pin
-    const isMatch = verifyPin(String(pin).trim(), employee.pinHash || employee.pin);
+    // Verify Password / PIN against pinHash or legacy plaintext pin
+    const isMatch = verifyPin(String(inputPassword).trim(), employee.pinHash || employee.pin);
     if (!isMatch) {
-      return NextResponse.json({ error: "PIN yang Anda masukkan salah" }, { status: 401 });
+      return NextResponse.json({ error: "Password yang Anda masukkan salah" }, { status: 401 });
     }
 
     // Auto-migrate legacy plaintext PIN to pinHash if not yet migrated

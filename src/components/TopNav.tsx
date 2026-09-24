@@ -86,6 +86,37 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
     };
   }, [pathname]);
 
+  const [appMode, setAppMode] = useState<"kasir" | "inventaris">("kasir");
+
+  useEffect(() => {
+    const isKasirRoute = pathname === "/pos" || pathname === "/bazaar-orders";
+    const isInventarisRoute =
+      pathname === "/stock" ||
+      pathname === "/products" ||
+      pathname === "/suppliers" ||
+      pathname === "/reports" ||
+      pathname === "/analytics" ||
+      pathname === "/settings";
+
+    if (isKasirRoute) setAppMode("kasir");
+    else if (isInventarisRoute) setAppMode("inventaris");
+    else {
+      const savedMode = localStorage.getItem("app_mode") as "kasir" | "inventaris";
+      if (savedMode) setAppMode(savedMode);
+    }
+  }, [pathname]);
+
+  const handleToggleMode = (mode: "kasir" | "inventaris") => {
+    setAppMode(mode);
+    localStorage.setItem("app_mode", mode);
+    window.dispatchEvent(new CustomEvent("app-mode-changed", { detail: mode }));
+    if (mode === "kasir" && pathname !== "/pos" && pathname !== "/bazaar-orders" && pathname !== "/po") {
+      router.push("/pos");
+    } else if (mode === "inventaris" && (pathname === "/pos" || pathname === "/bazaar-orders")) {
+      router.push("/stock");
+    }
+  };
+
   const todayStr = new Intl.DateTimeFormat("id-ID", {
     weekday: "long",
     day: "numeric",
@@ -96,7 +127,7 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
   return (
     <>
       <header className="sticky top-0 z-30 h-14 sm:h-16 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-3 sm:px-6 flex items-center justify-between gap-2 overflow-x-clip">
-        {/* Left Side: Hamburger & Active Event */}
+        {/* Left Side: Hamburger & Active Event & Mode Switcher */}
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={onToggleSidebar}
@@ -105,6 +136,34 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
           >
             <Menu className="h-4 w-4" />
           </button>
+
+          {/* Dual-Mode Quick Pill */}
+          <div className="hidden sm:flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold shrink-0">
+            <button
+              type="button"
+              onClick={() => handleToggleMode("kasir")}
+              className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                appMode === "kasir"
+                  ? "bg-amber-500 text-slate-950 font-black shadow-xs"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              }`}
+              title="Beralih ke App Kasir Booth"
+            >
+              🎪 Kasir
+            </button>
+            <button
+              type="button"
+              onClick={() => handleToggleMode("inventaris")}
+              className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                appMode === "inventaris"
+                  ? "bg-amber-500 text-slate-950 font-black shadow-xs"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              }`}
+              title="Beralih ke App Inventaris & Back-Office"
+            >
+              🏢 Inventaris
+            </button>
+          </div>
 
           {/* Ongoing Event Status */}
           {activeEvent ? (
