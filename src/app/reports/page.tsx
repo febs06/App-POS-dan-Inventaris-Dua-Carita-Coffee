@@ -111,6 +111,25 @@ export default function ReportsPage() {
   const avgTicket = totalTransactions > 0 ? Math.round(totalRevenue / totalTransactions) : 0;
   const voidCount = filteredOrders.filter((o) => o.isVoided).length;
 
+  // Rekap per metode pembayaran (dari semua payments dalam filtered orders)
+  const allPayments = filteredOrders.flatMap((o) => o.payments || []);
+  const qrisTotal = allPayments
+    .filter((p: any) => p.method?.toUpperCase() === "QRIS")
+    .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+  const cashTotal = allPayments
+    .filter((p: any) => p.method?.toUpperCase() === "CASH")
+    .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+  const qrisTxCount = new Set(
+    filteredOrders
+      .filter((o) => (o.payments || []).some((p: any) => p.method?.toUpperCase() === "QRIS"))
+      .map((o) => o.id)
+  ).size;
+  const cashTxCount = new Set(
+    filteredOrders
+      .filter((o) => (o.payments || []).some((p: any) => p.method?.toUpperCase() === "CASH"))
+      .map((o) => o.id)
+  ).size;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -256,7 +275,7 @@ export default function ReportsPage() {
             <div className="text-2xl font-black text-amber-600 mt-1 print:text-lg">
               {formatRupiah(totalDiscount)}
             </div>
-            <div className="text-[10px] text-slate-400 mt-0.5 print:text-slate-600">Potongan voucher & diskon manual</div>
+            <div className="text-[10px] text-slate-400 mt-0.5 print:text-slate-600">Potongan voucher &amp; diskon manual</div>
           </div>
 
           <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs print:border-slate-300 print:p-3">
@@ -276,6 +295,41 @@ export default function ReportsPage() {
           </div>
         </div>
 
+        {/* Payment Method Summary */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 print:gap-2">
+          {/* QRIS Card */}
+          <div className="p-4 rounded-2xl border shadow-xs print:p-3 bg-blue-50 border-blue-200">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-blue-600 uppercase tracking-wide">💳 Total Masuk via QRIS</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                {qrisTxCount} transaksi
+              </span>
+            </div>
+            <div className="text-2xl font-black text-blue-700 mt-2 print:text-lg">
+              {formatRupiah(qrisTotal)}
+            </div>
+            <div className="text-[10px] text-blue-400 mt-0.5">
+              {totalRevenue > 0 ? ((qrisTotal / (qrisTotal + cashTotal || 1)) * 100).toFixed(1) : "0"}% dari total penerimaan
+            </div>
+          </div>
+
+          {/* Cash Card */}
+          <div className="p-4 rounded-2xl border shadow-xs print:p-3 bg-emerald-50 border-emerald-200">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wide">💵 Total Masuk via Cash</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                {cashTxCount} transaksi
+              </span>
+            </div>
+            <div className="text-2xl font-black text-emerald-700 mt-2 print:text-lg">
+              {formatRupiah(cashTotal)}
+            </div>
+            <div className="text-[10px] text-emerald-400 mt-0.5">
+              {cashTotal > 0 ? ((cashTotal / (qrisTotal + cashTotal || 1)) * 100).toFixed(1) : "0"}% dari total penerimaan
+            </div>
+          </div>
+        </div>
+
         {/* Reports Table */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden print:border-none print:shadow-none">
           <div className="overflow-x-auto print:overflow-visible">
@@ -289,6 +343,7 @@ export default function ReportsPage() {
                   <th className="py-3 px-3">Item Pesanan</th>
                   <th className="py-3 px-3">Total Tagihan</th>
                   <th className="py-3 px-3">Status Bayar</th>
+                  <th className="py-3 px-3">Tipe Bayar</th>
                   <th className="py-3 px-3">Status Order</th>
                   <th className="py-3 px-3 text-right no-print">Aksi</th>
                 </tr>
@@ -296,13 +351,13 @@ export default function ReportsPage() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400">
+                    <td colSpan={10} className="py-12 text-center text-slate-400">
                       Memuat data transaksi...
                     </td>
                   </tr>
                 ) : filteredOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400">
+                    <td colSpan={10} className="py-12 text-center text-slate-400">
                       Tidak ada riwayat transaksi yang cocok dengan filter.
                     </td>
                   </tr>
@@ -385,6 +440,31 @@ export default function ReportsPage() {
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${paymentBadge.bg}`}>
                             {paymentBadge.label}
                           </span>
+                        </td>
+
+                        <td className="py-3 px-3">
+                          {(() => {
+                            const methods = (order.payments || [])
+                              .map((p: any) => (p.method as string)?.toUpperCase())
+                              .filter((m: string | undefined): m is string => Boolean(m));
+                            const unique = [...new Set(methods)];
+                            if (unique.length === 0) return <span className="text-slate-300 text-[10px]">—</span>;
+                            if (unique.length > 1) return (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold border bg-purple-50 text-purple-700 border-purple-200">
+                                Campuran
+                              </span>
+                            );
+                            const m = unique[0] as string;
+                            return (
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                m === "QRIS"
+                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              }`}>
+                                {m}
+                              </span>
+                            );
+                          })()}
                         </td>
 
                         <td className="py-3 px-3">
