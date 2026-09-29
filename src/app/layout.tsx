@@ -5,6 +5,14 @@ import AppLayout from "@/components/AppLayout";
 export const metadata: Metadata = {
   title: "Dua Carita Coffee - Web Kasir POS, Pre-Order & Booth Event",
   description: "Sistem kasir cerdas, manajemen pre-order WhatsApp, dan booth bazaar event terpadu.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
 };
 
 export default function RootLayout({
