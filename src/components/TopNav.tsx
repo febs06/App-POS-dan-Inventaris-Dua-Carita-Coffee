@@ -188,8 +188,8 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
           {/* Low Stock Warning Icon */}
           {lowStockCount > 0 && (
             <Link
-              href="/stock"
-              title={`${lowStockCount} produk stok menipis!`}
+              href="/stock?openWa=true"
+              title={`${lowStockCount} bahan baku/produk stok menipis! Klik untuk kirim rekap WhatsApp`}
               className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-[11px] font-bold hover:bg-amber-100 transition shrink-0"
             >
               <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />

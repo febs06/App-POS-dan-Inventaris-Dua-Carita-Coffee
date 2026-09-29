@@ -34,10 +34,13 @@ import {
   HelpCircle,
   Info,
   Percent,
+  MessageSquare,
 } from "lucide-react";
+import LowStockWhatsAppModal from "@/components/LowStockWhatsAppModal";
 
 export default function StockManagementPage() {
   const [activeTab, setActiveTab] = useState<"raw_materials" | "stock_opname" | "products">("raw_materials");
+  const [isLowStockWaOpen, setIsLowStockWaOpen] = useState(false);
 
   // ==========================================
   // 1. STATE INVENTORY BAHAN BAKU & VENDOR PRICING
@@ -185,6 +188,17 @@ export default function StockManagementPage() {
       loadRawMaterials();
     }
   }, [rawSearchQuery]);
+
+  // Buka modal WhatsApp otomatis jika diakses via parameter ?openWa=true
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("openWa") === "true") {
+        setActiveTab("raw_materials");
+        setIsLowStockWaOpen(true);
+      }
+    } catch {}
+  }, []);
 
   // Load Raw Materials
   const loadRawMaterials = async () => {
@@ -898,6 +912,36 @@ export default function StockManagementPage() {
             </form>
           </div>
 
+          {/* Banner Stok Menipis & Tombol WA Langsung */}
+          {rawMaterialsData.lowStockCount > 0 && (
+            <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-emerald-500/15 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-xs">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <span>{rawMaterialsData.lowStockCount} Bahan Baku Mencapai Batas Kritis!</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
+                      Perlu Restock
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Stok saat ini sudah di bawah batas minimum. Buat format rekap pesanan dan kirim langsung ke WhatsApp.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLowStockWaOpen(true)}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-600/20 transition shrink-0 cursor-pointer"
+              >
+                <MessageSquare className="h-4 w-4" />
+                <span>Kirim Format WA Menipis ({rawMaterialsData.lowStockCount})</span>
+              </button>
+            </div>
+          )}
+
           {/* Tabel "Daftar Inventory" */}
           <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -906,16 +950,35 @@ export default function StockManagementPage() {
                 <p className="text-xs text-slate-500">Daftar bahan yang tersedia di gudang atau booth</p>
               </div>
 
-              {/* Kolom Pencarian Bahan */}
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Cari bahan berdasarkan nama..."
-                  value={rawSearchQuery}
-                  onChange={(e) => setRawSearchQuery(e.target.value)}
-                  className="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 text-slate-900 placeholder:text-slate-400"
-                />
+              {/* Action Buttons & Pencarian Bahan */}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsLowStockWaOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs transition cursor-pointer shrink-0"
+                  title="Buka format WhatsApp untuk bahan kritis"
+                >
+                  <MessageSquare className="h-4 w-4 text-emerald-600" />
+                  <span className="hidden sm:inline">Format WA Menipis</span>
+                  <span className="sm:hidden">Format WA</span>
+                  {rawMaterialsData.lowStockCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-600 text-white font-bold">
+                      {rawMaterialsData.lowStockCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Kolom Pencarian Bahan */}
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Cari bahan..."
+                    value={rawSearchQuery}
+                    onChange={(e) => setRawSearchQuery(e.target.value)}
+                    className="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 text-slate-900 placeholder:text-slate-400"
+                  />
+                </div>
               </div>
             </div>
 
@@ -2498,6 +2561,13 @@ export default function StockManagementPage() {
           </div>
         </div>
       )}
+
+      {/* Modal Format WhatsApp Bahan Baku Menipis */}
+      <LowStockWhatsAppModal
+        isOpen={isLowStockWaOpen}
+        onClose={() => setIsLowStockWaOpen(false)}
+        rawMaterials={rawMaterialsData.materials}
+      />
     </div>
   );
 }
