@@ -168,7 +168,7 @@ export async function POST(req: Request) {
           const additionVal = signedQty * parsedPurchasePrice;
           const totalStock = Math.max(0, material.stock) + signedQty;
           newCostPerUnit = totalStock > 0 ? (currentStockVal + additionVal) / totalStock : parsedPurchasePrice;
-          newCostPerUnit = Math.round(newCostPerUnit * 100) / 100;
+          newCostPerUnit = Math.round(newCostPerUnit * 10000) / 10000;
         }
       }
     }

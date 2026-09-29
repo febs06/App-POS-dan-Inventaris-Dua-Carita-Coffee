@@ -471,7 +471,7 @@ export default function StockManagementPage() {
           category: editRawCategory,
           unit: editRawUnit,
           minStock: parseFloat(editRawMinStock) || 0,
-          costPerUnit: parseFloat(editRawCostPerUnit) || 0,
+          costPerUnit: parseFloat(String(editRawCostPerUnit).replace(",", ".")) || 0,
           supplier: editRawSupplier,
           buyUnit: editRawBuyUnit,
           packSize: parseFloat(editRawPackSize) || 1000,
@@ -2221,12 +2221,16 @@ export default function StockManagementPage() {
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">HPP per {editRawUnit} (Rp)</label>
                   <input
-                    type="number"
-                    step="any"
+                    type="text"
+                    inputMode="decimal"
                     value={editRawCostPerUnit}
                     onChange={(e) => setEditRawCostPerUnit(e.target.value)}
+                    placeholder="Contoh: 0.31 atau 150"
                     className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-bold text-slate-900"
                   />
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">
+                    Bisa pecahan desimal (cth: 0.31 untuk air demineral)
+                  </span>
                 </div>
               </div>
 
@@ -2259,7 +2263,7 @@ export default function StockManagementPage() {
                         const p = parseFloat(editRawPackPrice);
                         const s = parseFloat(newSize);
                         if (p > 0 && s > 0) {
-                          setEditRawCostPerUnit((p / s).toFixed(2));
+                          setEditRawCostPerUnit(String(Math.round((p / s) * 10000) / 10000));
                         }
                       }}
                       placeholder="1000"
@@ -2278,7 +2282,7 @@ export default function StockManagementPage() {
                         const p = parseFloat(newPrice);
                         const s = parseFloat(editRawPackSize);
                         if (p > 0 && s > 0) {
-                          setEditRawCostPerUnit((p / s).toFixed(2));
+                          setEditRawCostPerUnit(String(Math.round((p / s) * 10000) / 10000));
                         }
                       }}
                       placeholder="Contoh: 19500"

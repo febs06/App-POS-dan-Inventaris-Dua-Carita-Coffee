@@ -105,10 +105,12 @@ export async function POST(req: Request) {
     const initialStock = parseFloat(stock) || 0;
     const parsedPackSize = parseFloat(packSize) || (unit === "gram" || unit === "ml" ? 1000 : 1);
     const parsedPackPrice = lastPackPrice ? parseFloat(lastPackPrice) : null;
-    let initialCostPerUnit = parseFloat(costPerUnit) || 0;
+    let initialCostPerUnit = costPerUnit !== undefined && costPerUnit !== null
+      ? parseFloat(String(costPerUnit).replace(",", ".")) || 0
+      : 0;
 
     if (initialCostPerUnit === 0 && parsedPackPrice && parsedPackSize > 0) {
-      initialCostPerUnit = Math.round((parsedPackPrice / parsedPackSize) * 100) / 100;
+      initialCostPerUnit = Math.round((parsedPackPrice / parsedPackSize) * 10000) / 10000;
     }
 
     const material = await prisma.rawMaterial.create({
@@ -158,10 +160,12 @@ export async function PUT(req: Request) {
 
     const parsedPackSize = packSize !== undefined ? parseFloat(packSize) : undefined;
     const parsedPackPrice = lastPackPrice !== undefined ? (lastPackPrice ? parseFloat(lastPackPrice) : null) : undefined;
-    let computedCostPerUnit = costPerUnit !== undefined ? parseFloat(costPerUnit) : undefined;
+    let computedCostPerUnit = costPerUnit !== undefined && costPerUnit !== null
+      ? parseFloat(String(costPerUnit).replace(",", "."))
+      : undefined;
 
-    if ((computedCostPerUnit === undefined || computedCostPerUnit === 0) && parsedPackPrice && parsedPackSize && parsedPackSize > 0) {
-      computedCostPerUnit = Math.round((parsedPackPrice / parsedPackSize) * 100) / 100;
+    if ((computedCostPerUnit === undefined || isNaN(computedCostPerUnit) || computedCostPerUnit === 0) && parsedPackPrice && parsedPackSize && parsedPackSize > 0) {
+      computedCostPerUnit = Math.round((parsedPackPrice / parsedPackSize) * 10000) / 10000;
     }
 
     const updated = await prisma.rawMaterial.update({

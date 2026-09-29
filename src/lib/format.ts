@@ -1,4 +1,24 @@
-export function formatRupiah(amount: number): string {
+export function formatRupiah(amount: number, forceDecimals = false): string {
+  if (isNaN(amount) || amount === null || amount === undefined) return "Rp 0";
+  
+  const abs = Math.abs(amount);
+  const isFractional = !Number.isInteger(amount);
+  const isMicro = abs > 0 && abs < 1;
+  const isSmallFraction = abs < 1000 && isFractional;
+
+  if (forceDecimals || isMicro || isSmallFraction) {
+    let maxDigits = 2;
+    if (abs < 0.01) maxDigits = 4;
+    else if (abs < 1) maxDigits = 3;
+
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: isMicro ? 2 : 0,
+      maximumFractionDigits: maxDigits,
+    }).format(amount);
+  }
+
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",

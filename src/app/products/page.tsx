@@ -666,8 +666,9 @@ export default function ProductsPage() {
                   <input
                     type="number"
                     min="0"
+                    step="any"
                     value={prodCost || ""}
-                    onChange={(e) => setProdCost(Number(e.target.value))}
+                    onChange={(e) => setProdCost(parseFloat(e.target.value) || 0)}
                     className="w-full text-xs p-2.5 rounded-xl bg-white text-slate-900 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -774,7 +775,7 @@ export default function ProductsPage() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => setProdCost(Math.round(calculatedHpp))}
+                      onClick={() => setProdCost(Math.round(calculatedHpp * 100) / 100)}
                       className="text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg transition cursor-pointer"
                     >
                       Terapkan ke Modal/HPP
