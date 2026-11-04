@@ -42,6 +42,9 @@ interface Product {
 
 interface CartItem {
   product: Product;
+  variant?: any;
+  sizeLabel?: string;
+  price: number;
   qty: number;
   notes: string;
 }
@@ -142,7 +145,7 @@ export default function PosPage() {
   };
 
   // Cart Subtotal
-  const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.qty, 0);
+  const subtotal = cart.reduce((sum, item) => sum + (item.price || item.product.price) * item.qty, 0);
 
   // Recalculate discount whenever subtotal or discount rules change
   useEffect(() => {
@@ -194,7 +197,10 @@ export default function PosPage() {
     setIsProductModalOpen(true);
   };
 
-  const handleAddToCartFromModal = (product: Product, qty: number, notes: string) => {
+  const handleAddToCartFromModal = (product: Product, qty: number, notes: string, variant?: any) => {
+    const sizeLabel = variant ? `${variant.packaging} ${variant.size}` : product.unit;
+    const effectivePrice = variant ? variant.price : product.price;
+
     setCart((prev) => {
       // If editing an existing item in cart
       if (
@@ -203,13 +209,23 @@ export default function PosPage() {
         editingCartItemIndex < prev.length
       ) {
         const nextCart = [...prev];
-        nextCart[editingCartItemIndex] = { product, qty, notes };
+        nextCart[editingCartItemIndex] = {
+          product,
+          variant,
+          sizeLabel,
+          price: effectivePrice,
+          qty,
+          notes,
+        };
         return nextCart;
       }
 
-      // Check if product with same notes already exists in cart
+      // Check if product with same variant and same notes already exists in cart
       const existingIndex = prev.findIndex(
-        (item) => item.product.id === product.id && (item.notes || "") === (notes || "")
+        (item) =>
+          item.product.id === product.id &&
+          item.variant?.id === variant?.id &&
+          (item.notes || "") === (notes || "")
       );
 
       if (existingIndex > -1) {
@@ -221,7 +237,17 @@ export default function PosPage() {
         return nextCart;
       }
 
-      return [...prev, { product, qty, notes }];
+      return [
+        ...prev,
+        {
+          product,
+          variant,
+          sizeLabel,
+          price: effectivePrice,
+          qty,
+          notes,
+        },
+      ];
     });
     setEditingCartItemIndex(null);
   };
@@ -364,8 +390,12 @@ export default function PosPage() {
         status: orderStatus,
         items: cart.map((item) => ({
           productId: item.product.id,
+          variantId: item.variant?.id || null,
+          price: item.price || item.product.price,
           qty: item.qty,
-          notes: item.notes || null,
+          notes: item.sizeLabel
+            ? (item.notes ? `${item.sizeLabel} • ${item.notes}` : item.sizeLabel)
+            : (item.notes || null),
         })),
         voucherCode: appliedVoucher ? appliedVoucher.code : undefined,
         manualDiscountAmount: discountType === "manual" ? discountAmount : 0,
@@ -640,8 +670,15 @@ export default function PosPage() {
                         <span>{item.product.name}</span>
                         <span className="text-[10px] text-slate-400">✎</span>
                       </div>
-                      <div className="text-[11px] text-slate-500">
-                        {formatRupiah(item.product.price)} / {item.product.unit}
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {item.sizeLabel && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-200">
+                            {item.sizeLabel}
+                          </span>
+                        )}
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          {formatRupiah(item.price || item.product.price)}
+                        </span>
                       </div>
                       {item.notes && (
                         <div className="text-[10px] text-[#702424] bg-[#fceeed] border border-[#803838]/20 rounded-md px-1.5 py-0.5 mt-1 inline-block">
@@ -650,7 +687,7 @@ export default function PosPage() {
                       )}
                     </div>
                     <div className="font-black text-slate-900">
-                      {formatRupiah(item.product.price * item.qty)}
+                      {formatRupiah((item.price || item.product.price) * item.qty)}
                     </div>
                   </div>
 

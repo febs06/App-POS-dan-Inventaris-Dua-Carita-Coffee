@@ -19,6 +19,23 @@ import {
   Loader2,
 } from "lucide-react";
 
+interface VariantFormItem {
+  id?: string;
+  packaging: string; // "Cup" | "Botol"
+  size: string; // "Reguler", "Large", "250 ML", "1.000 ML"
+  price: number;
+  cost: number;
+  stock: number;
+  isActive: boolean;
+}
+
+const DEFAULT_VARIANTS_TEMPLATE: VariantFormItem[] = [
+  { packaging: "Cup", size: "Reguler", price: 13000, cost: 6000, stock: 50, isActive: true },
+  { packaging: "Cup", size: "Large", price: 16000, cost: 8000, stock: 50, isActive: true },
+  { packaging: "Botol", size: "250 ML", price: 15000, cost: 7000, stock: 25, isActive: true },
+  { packaging: "Botol", size: "1.000 ML", price: 55000, cost: 25000, stock: 10, isActive: true },
+];
+
 export default function ProductsPage() {
   const [activeTab, setActiveTab] = useState<"products" | "categories">("products");
   const [products, setProducts] = useState<any[]>([]);
@@ -43,6 +60,7 @@ export default function ProductsPage() {
   const [prodUnit, setProdUnit] = useState("cup");
   const [prodImageUrl, setProdImageUrl] = useState("");
   const [prodIsActive, setProdIsActive] = useState(true);
+  const [prodVariants, setProdVariants] = useState<VariantFormItem[]>(DEFAULT_VARIANTS_TEMPLATE);
   const [submittingProd, setSubmittingProd] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -154,6 +172,7 @@ export default function ProductsPage() {
     setProdUnit("cup");
     setProdImageUrl("");
     setProdIsActive(true);
+    setProdVariants(DEFAULT_VARIANTS_TEMPLATE);
     setProdIngredients([]);
     setIsProductModalOpen(true);
   };
@@ -168,6 +187,28 @@ export default function ProductsPage() {
     setProdUnit(p.unit);
     setProdImageUrl(p.imageUrl || "");
     setProdIsActive(p.isActive);
+
+    if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+      setProdVariants(
+        p.variants.map((v: any) => ({
+          id: v.id,
+          packaging: v.packaging,
+          size: v.size,
+          price: v.price,
+          cost: v.cost,
+          stock: v.stock,
+          isActive: v.isActive,
+        }))
+      );
+    } else {
+      setProdVariants([
+        { packaging: "Cup", size: "Reguler", price: p.price, cost: p.cost, stock: p.stock, isActive: true },
+        { packaging: "Cup", size: "Large", price: p.price + 3000, cost: Math.round((p.cost || 6000) * 1.3), stock: p.stock, isActive: true },
+        { packaging: "Botol", size: "250 ML", price: p.price + 2000, cost: Math.round((p.cost || 6000) * 1.2), stock: 25, isActive: true },
+        { packaging: "Botol", size: "1.000 ML", price: 55000, cost: 25000, stock: 10, isActive: true },
+      ]);
+    }
+
     if (p.ingredients && Array.isArray(p.ingredients)) {
       setProdIngredients(
         p.ingredients.map((i: any) => ({
@@ -181,24 +222,48 @@ export default function ProductsPage() {
     setIsProductModalOpen(true);
   };
 
+  const updateVariant = (index: number, field: keyof VariantFormItem, value: any) => {
+    setProdVariants((prev) => {
+      const updated = prev.map((item, idx) => (idx === index ? { ...item, [field]: value } : item));
+      if (index === 0 && field === "price" && (!prodPrice || prodPrice === prev[0].price)) {
+        setProdPrice(Number(value));
+      }
+      if (index === 0 && field === "cost" && (!prodCost || prodCost === prev[0].cost)) {
+        setProdCost(Number(value));
+      }
+      return updated;
+    });
+  };
+
+  const toggleVariantActive = (index: number) => {
+    setProdVariants((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, isActive: !item.isActive } : item))
+    );
+  };
+
   const handleSubmitProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingProd(true);
 
     try {
+      const activeVariant = prodVariants.find((v) => v.isActive);
+      const effectivePrice = prodPrice > 0 ? prodPrice : (activeVariant?.price || 0);
+      const effectiveCost = prodCost > 0 ? prodCost : (activeVariant?.cost || 0);
+
       const url = "/api/products";
       const method = editingProduct ? "PUT" : "POST";
       const payload = {
         ...(editingProduct && { id: editingProduct.id }),
         name: prodName,
         categoryId: prodCategoryId,
-        price: prodPrice,
-        cost: prodCost,
+        price: effectivePrice,
+        cost: effectiveCost,
         stock: prodStock,
         unit: prodUnit,
         imageUrl: prodImageUrl,
         isActive: prodIsActive,
         ingredients: prodIngredients.filter((i) => i.rawMaterialId && i.amount > 0),
+        variants: prodVariants,
       };
 
       const res = await fetch(url, {
@@ -440,8 +505,24 @@ export default function ProductsPage() {
                           {p.category?.name}
                         </td>
 
-                        <td className="py-3 px-3 font-bold text-slate-900">
-                          {formatRupiah(p.price)}
+                        <td className="py-3 px-3">
+                          <div className="font-bold text-slate-900">{formatRupiah(p.price)}</div>
+                          {p.variants && p.variants.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1 max-w-[190px]">
+                              {p.variants
+                                .filter((v: any) => v.isActive)
+                                .map((v: any) => (
+                                  <span
+                                    key={v.id || `${v.packaging}-${v.size}`}
+                                    className="inline-flex items-center text-[10px] font-medium bg-amber-50 text-amber-900 border border-amber-200/80 px-1.5 py-0.5 rounded shadow-2xs"
+                                    title={`${v.packaging} ${v.size}: Jual ${formatRupiah(v.price)} | Modal ${formatRupiah(v.cost)}`}
+                                  >
+                                    <span className="font-bold mr-1">{v.size}</span>
+                                    <span className="text-[9px] text-amber-700">{formatRupiah(v.price)}</span>
+                                  </span>
+                                ))}
+                            </div>
+                          )}
                         </td>
 
                         <td className="py-3 px-3 text-slate-500 font-medium">
@@ -677,11 +758,97 @@ export default function ProductsPage() {
               {/* Profit preview card */}
               <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between text-xs">
                 <div className="text-emerald-800">
-                  <span className="font-bold">Estimasi Keuntungan: </span>
+                  <span className="font-bold">Estimasi Keuntungan Standar: </span>
                   {formatRupiah(marginNominal)} / {prodUnit}
                 </div>
                 <div className="font-black text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-300">
                   Margin: {marginPercent}%
+                </div>
+              </div>
+
+              {/* Varian Ukuran & Kemasan */}
+              <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>📏 Pilihan Kemasan & Ukuran</span>
+                      <span className="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded-full font-bold">
+                        {prodVariants.filter((v) => v.isActive).length} Ukuran Aktif
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Pilihan ukuran ini yang akan muncul di modal saat kasir memilih menu di POS.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {prodVariants.map((v, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-2.5 rounded-xl border transition ${
+                        v.isActive
+                          ? "bg-white border-amber-300 shadow-2xs"
+                          : "bg-slate-100/70 border-slate-200 opacity-60"
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={v.isActive}
+                            onChange={() => toggleVariantActive(idx)}
+                            className="rounded text-amber-600 focus:ring-amber-500 h-4 w-4"
+                          />
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-black text-slate-900">
+                              {v.packaging === "Cup" ? "🥤 Cup" : "🍾 Botol"}
+                            </span>
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">
+                              {v.size}
+                            </span>
+                          </div>
+                        </label>
+
+                        {v.isActive && v.price > 0 && (
+                          <div className="text-[11px] font-semibold text-emerald-700">
+                            Margin: {formatRupiah(v.price - v.cost)} ({Math.round(((v.price - v.cost) / v.price) * 100)}%)
+                          </div>
+                        )}
+                      </div>
+
+                      {v.isActive && (
+                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-600 block mb-0.5">
+                              Harga Jual (Rp)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={v.price || ""}
+                              onChange={(e) => updateVariant(idx, "price", Number(e.target.value))}
+                              placeholder="15000"
+                              className="w-full text-xs font-bold p-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-1 focus:ring-amber-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-600 block mb-0.5">
+                              Modal / HPP (Rp)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={v.cost || ""}
+                              onChange={(e) => updateVariant(idx, "cost", Number(e.target.value))}
+                              placeholder="7000"
+                              className="w-full text-xs p-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 focus:ring-1 focus:ring-amber-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 

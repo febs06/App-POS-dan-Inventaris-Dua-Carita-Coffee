@@ -5,25 +5,45 @@ import { normalizeProductName } from "@/lib/format";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const range = searchParams.get("range") || "30"; // 7, 14, 30, 90 days
+    const range = searchParams.get("range") || "all"; // all, 2026, this_month, last_month, 90, 30, 14, 7
 
-    const days = parseInt(range, 10) || 30;
-    const sinceDate = new Date();
-    sinceDate.setDate(sinceDate.getDate() - days);
+    const where: any = { isVoided: false };
+    const now = new Date();
+
+    if (range === "all") {
+      // Tampilkan seluruh riwayat transaksi tanpa batas tanggal
+    } else if (range === "2026") {
+      where.createdAt = {
+        gte: new Date(2026, 0, 1),
+        lte: new Date(2026, 11, 31, 23, 59, 59, 999),
+      };
+    } else if (range === "this_month") {
+      where.createdAt = {
+        gte: new Date(now.getFullYear(), now.getMonth(), 1),
+        lte: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
+      };
+    } else if (range === "last_month") {
+      where.createdAt = {
+        gte: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+        lte: new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999),
+      };
+    } else {
+      const days = parseInt(range, 10) || 30;
+      const sinceDate = new Date();
+      sinceDate.setDate(sinceDate.getDate() - days);
+      where.createdAt = { gte: sinceDate };
+    }
 
     // Ambil semua order aktif (tidak void)
     const orders = await prisma.order.findMany({
-      where: {
-        isVoided: false,
-        createdAt: { gte: sinceDate },
-      },
+      where,
       include: {
         event: true,
         customer: true,
         voucher: true,
         payments: true,
         items: {
-          include: { product: true },
+          include: { product: true, variant: true },
         },
       },
       orderBy: { createdAt: "asc" },
@@ -40,7 +60,8 @@ export async function GET(req: NextRequest) {
     orders.forEach((o) => {
       o.items.forEach((item) => {
         if (!item.isVoided) {
-          totalCost += item.qty * (item.product?.cost || 0);
+          const itemUnitCost = item.variant?.cost ?? item.product?.cost ?? 0;
+          totalCost += item.qty * itemUnitCost;
         }
       });
     });

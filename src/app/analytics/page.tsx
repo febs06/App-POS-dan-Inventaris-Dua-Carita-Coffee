@@ -40,7 +40,7 @@ import {
 export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<"daily" | "monthly">("daily");
   const [data, setData] = useState<any>(null);
-  const [range, setRange] = useState("30");
+  const [range, setRange] = useState("all");
   const [selectedYear, setSelectedYear] = useState<string>("2026");
   const [loading, setLoading] = useState(true);
 
@@ -101,10 +101,13 @@ export default function AnalyticsPage() {
               onChange={(e) => setRange(e.target.value)}
               className="text-xs font-bold bg-white text-slate-900 border border-slate-300 rounded-xl px-3 py-2 shadow-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
             >
-              <option value="7">7 Hari Terakhir</option>
-              <option value="14">14 Hari Terakhir</option>
+              <option value="all">Semua Waktu (All Time)</option>
+              <option value="2026">Sepanjang Tahun 2026</option>
+              <option value="this_month">Bulan Ini (November 2026)</option>
+              <option value="last_month">Bulan Lalu (Oktober 2026)</option>
+              <option value="90">90 Hari Terakhir</option>
               <option value="30">30 Hari Terakhir</option>
-              <option value="90">3 Bulan Terakhir</option>
+              <option value="7">7 Hari Terakhir</option>
             </select>
           </div>
         ) : (

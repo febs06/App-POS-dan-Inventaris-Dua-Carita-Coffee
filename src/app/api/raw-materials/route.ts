@@ -35,10 +35,15 @@ export async function GET(req: Request) {
         where.category = { in: ["Syrup/Flavor", "Sirup & Flavour"] };
       } else if (
         decoded === "Sweatener/Gula" ||
+        decoded === "Sweetener / Gula / Pemanis" ||
         decoded.toLowerCase().includes("gula") ||
-        decoded.toLowerCase().includes("sweatener")
+        decoded.toLowerCase().includes("sweatener") ||
+        decoded.toLowerCase().includes("sweetener") ||
+        decoded.toLowerCase().includes("pemanis")
       ) {
-        where.category = { in: ["Sweatener/Gula", "Gula"] };
+        where.category = {
+          in: ["Sweetener / Gula / Pemanis", "Sweatener/Gula", "Gula", "Sweetener", "Pemanis"],
+        };
       } else if (decoded === "Dairy/Susu" || decoded.toLowerCase().includes("susu")) {
         where.category = { in: ["Dairy/Susu", "Susu"] };
       } else {

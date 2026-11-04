@@ -18,20 +18,33 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-interface Product {
+export interface ProductVariant {
+  id: string;
+  productId: string;
+  packaging: string; // "Cup", "Botol"
+  size: string; // "Reguler", "Large", "250 ML", "1.000 ML"
+  price: number;
+  cost: number;
+  stock: number;
+  isActive: boolean;
+}
+
+export interface Product {
   id: string;
   name: string;
   categoryId: string;
   price: number;
+  cost?: number;
   stock: number;
   unit: string;
   imageUrl: string | null;
   isActive: boolean;
   category: { id: string; name: string };
+  variants?: ProductVariant[];
+  ingredients?: any[];
   isAvailableByIngredients?: boolean;
   missingIngredients?: any[];
   maxProducible?: number | null;
-  ingredients?: any[];
 }
 
 interface PosProductModalProps {
@@ -41,13 +54,7 @@ interface PosProductModalProps {
   allProducts: Product[];
   initialQty?: number;
   initialNotes?: string;
-  onAddToCart: (product: Product, qty: number, notes: string) => void;
-}
-
-interface ParsedVariant {
-  product: Product;
-  packaging: "Botol" | "Cup" | string;
-  size: string;
+  onAddToCart: (product: Product, qty: number, notes: string, variant?: ProductVariant | null) => void;
 }
 
 const QUICK_NOTES = [
@@ -69,127 +76,81 @@ export default function PosProductModal({
   onAddToCart,
 }: PosProductModalProps) {
   const [selectedPackaging, setSelectedPackaging] = useState<string>("Cup");
-  const [selectedSize, setSelectedSize] = useState<string>("Regular");
+  const [selectedSize, setSelectedSize] = useState<string>("Reguler");
   const [qty, setQty] = useState<number>(initialQty);
   const [notes, setNotes] = useState<string>(initialNotes);
 
-  // Group all products belonging to the same base name (e.g. Aren Coffee Milk)
-  const familyProducts = useMemo(() => {
+  // Active variants directly from product relation if available
+  const activeVariants = useMemo(() => {
     if (!product) return [];
-    const base = normalizeProductName(product.name).toLowerCase();
-    return allProducts.filter(
-      (p) => normalizeProductName(p.name).toLowerCase() === base
-    );
-  }, [product, allProducts]);
-
-  // Parse each variant in the family for its packaging and size
-  const parsedVariants: ParsedVariant[] = useMemo(() => {
-    if (familyProducts.length === 0 && product) {
-      return [{ product, packaging: product.unit, size: product.unit }];
+    if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+      return product.variants.filter((v) => v.isActive);
     }
+    // Fallback: create mock variants based on unit
+    const unitName = product.unit.toLowerCase() === "botol" ? "Botol" : "Cup";
+    return [
+      {
+        id: "default-reg",
+        productId: product.id,
+        packaging: unitName,
+        size: unitName === "Botol" ? "250 ML" : "Reguler",
+        price: product.price,
+        cost: product.cost || 0,
+        stock: product.stock,
+        isActive: true,
+      },
+    ];
+  }, [product]);
 
-    return familyProducts.map((p) => {
-      const sizeMatch = p.name.match(/\b\d+\s*(ml|l|liter|oz|gram|g|kg)\b/i);
-      const size = sizeMatch
-        ? sizeMatch[0]
-        : p.unit.toLowerCase() === "cup"
-        ? "Regular"
-        : p.unit;
-
-      let packaging = "Cup";
-      if (
-        p.unit.toLowerCase() === "botol" ||
-        p.name.toLowerCase().includes("botol") ||
-        sizeMatch
-      ) {
-        packaging = "Botol";
-      } else if (
-        p.unit.toLowerCase() === "cup" ||
-        p.name.toLowerCase().includes("cup")
-      ) {
-        packaging = "Cup";
-      } else {
-        packaging = p.unit.charAt(0).toUpperCase() + p.unit.slice(1);
-      }
-
-      return { product: p, packaging, size };
-    });
-  }, [familyProducts, product]);
-
-  // Unique packagings and sizes
+  // Unique packagings (e.g. ["Cup", "Botol"])
   const uniquePackagings = useMemo(() => {
     const set = new Set<string>();
-    parsedVariants.forEach((v) => set.add(v.packaging));
+    activeVariants.forEach((v) => set.add(v.packaging));
     return Array.from(set);
-  }, [parsedVariants]);
+  }, [activeVariants]);
 
-  // Sizes available for currently selected packaging
-  const availableSizesForPackaging = useMemo(() => {
-    return parsedVariants
-      .filter((v) => v.packaging === selectedPackaging)
-      .map((v) => v.size);
-  }, [parsedVariants, selectedPackaging]);
+  // Variants available under the currently selected packaging
+  const availableVariantsForPackaging = useMemo(() => {
+    return activeVariants.filter((v) => v.packaging === selectedPackaging);
+  }, [activeVariants, selectedPackaging]);
 
   // Sync state whenever opened product changes
   useEffect(() => {
     if (!product || !isOpen) return;
 
-    // Detect packaging of the opened product
-    const sizeMatch = product.name.match(/\b\d+\s*(ml|l|liter|oz|gram|g|kg)\b/i);
-    let defaultPack = "Cup";
-    if (
-      product.unit.toLowerCase() === "botol" ||
-      product.name.toLowerCase().includes("botol") ||
-      sizeMatch
-    ) {
-      defaultPack = "Botol";
-    } else if (
-      product.unit.toLowerCase() === "cup" ||
-      product.name.toLowerCase().includes("cup")
-    ) {
-      defaultPack = "Cup";
-    } else {
-      defaultPack = product.unit.charAt(0).toUpperCase() + product.unit.slice(1);
-    }
+    const firstPackaging = uniquePackagings[0] || "Cup";
+    setSelectedPackaging(firstPackaging);
 
-    const defaultSize = sizeMatch
-      ? sizeMatch[0]
-      : product.unit.toLowerCase() === "cup"
-      ? "Regular"
-      : product.unit;
+    const firstVariantForPack = activeVariants.find((v) => v.packaging === firstPackaging);
+    setSelectedSize(firstVariantForPack ? firstVariantForPack.size : "Reguler");
 
-    setSelectedPackaging(defaultPack);
-    setSelectedSize(defaultSize);
     setQty(initialQty || 1);
     setNotes(initialNotes || "");
-  }, [product, isOpen, initialQty, initialNotes]);
+  }, [product, isOpen, initialQty, initialNotes, uniquePackagings, activeVariants]);
 
-  // If user switches packaging, auto-pick first available size for that packaging
+  // If user switches packaging, pick the first available variant under that packaging
   const handleSelectPackaging = (pack: string) => {
     setSelectedPackaging(pack);
-    const sizesForThis = parsedVariants
-      .filter((v) => v.packaging === pack)
-      .map((v) => v.size);
-    if (sizesForThis.length > 0 && !sizesForThis.includes(selectedSize)) {
-      setSelectedSize(sizesForThis[0]);
+    const variantsForThis = activeVariants.filter((v) => v.packaging === pack);
+    if (variantsForThis.length > 0) {
+      const currentStillValid = variantsForThis.some((v) => v.size === selectedSize);
+      if (!currentStillValid) {
+        setSelectedSize(variantsForThis[0].size);
+      }
     }
   };
 
-  // Find currently active product variant based on selected packaging and size
-  const activeProduct: Product | null = useMemo(() => {
-    const match = parsedVariants.find(
-      (v) => v.packaging === selectedPackaging && v.size === selectedSize
-    );
-    if (match) return match.product;
-    const packMatch = parsedVariants.find((v) => v.packaging === selectedPackaging);
-    if (packMatch) return packMatch.product;
-    return product || (parsedVariants[0]?.product ?? null);
-  }, [parsedVariants, selectedPackaging, selectedSize, product]);
+  // Find the exact active variant
+  const currentVariant: ProductVariant | null = useMemo(() => {
+    const match = availableVariantsForPackaging.find((v) => v.size === selectedSize);
+    if (match) return match;
+    return availableVariantsForPackaging[0] || activeVariants[0] || null;
+  }, [availableVariantsForPackaging, selectedSize, activeVariants]);
 
-  if (!isOpen || !product || !activeProduct) return null;
+  if (!isOpen || !product) return null;
 
   const baseDisplayName = normalizeProductName(product.name);
-  const currentPrice = activeProduct.price;
+  const currentPrice = currentVariant ? currentVariant.price : product.price;
   const subtotal = currentPrice * qty;
 
   const handleToggleNoteChip = (chip: string) => {
@@ -208,7 +169,7 @@ export default function PosProductModal({
 
   const handleSubmit = () => {
     if (qty <= 0) return;
-    onAddToCart(activeProduct, qty, notes.trim());
+    onAddToCart(product, qty, notes.trim(), currentVariant);
     onClose();
   };
 
@@ -224,8 +185,15 @@ export default function PosProductModal({
             <h2 className="text-xl font-black text-slate-900 tracking-tight leading-snug">
               {baseDisplayName}
             </h2>
-            <div className="text-base font-extrabold text-[#852d2d] mt-0.5">
-              {formatRupiah(currentPrice)}
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-lg font-black text-[#852d2d]">
+                {formatRupiah(currentPrice)}
+              </span>
+              {currentVariant && (
+                <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                  {currentVariant.packaging} {currentVariant.size}
+                </span>
+              )}
             </div>
           </div>
           <button
@@ -244,7 +212,7 @@ export default function PosProductModal({
             <div>
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 mb-2">
                 <Package className="h-3.5 w-3.5 text-[#852d2d]" />
-                <span>Packaging</span>
+                <span>Pilihan Kemasan</span>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {uniquePackagings.map((pack) => {
@@ -256,7 +224,7 @@ export default function PosProductModal({
                       key={pack}
                       type="button"
                       onClick={() => handleSelectPackaging(pack)}
-                      className={`flex flex-col items-center justify-center py-4 px-3 rounded-2xl border-2 transition cursor-pointer ${
+                      className={`flex flex-col items-center justify-center py-3.5 px-3 rounded-2xl border-2 transition cursor-pointer ${
                         isSelected
                           ? "border-[#852d2d] bg-[#fbebe9] text-[#852d2d] font-bold shadow-xs"
                           : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 font-semibold"
@@ -276,27 +244,32 @@ export default function PosProductModal({
           )}
 
           {/* Ukuran (Size) Section */}
-          {availableSizesForPackaging.length > 0 && (
+          {availableVariantsForPackaging.length > 0 && (
             <div>
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 mb-2">
                 <Tag className="h-3.5 w-3.5 text-[#852d2d]" />
-                <span>Ukuran</span>
+                <span>Pilihan Ukuran ({selectedPackaging})</span>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {availableSizesForPackaging.map((sz) => {
-                  const isSelected = selectedSize === sz;
+              <div className="grid grid-cols-2 gap-2.5">
+                {availableVariantsForPackaging.map((v) => {
+                  const isSelected = selectedSize === v.size;
                   return (
                     <button
-                      key={sz}
+                      key={v.id || v.size}
                       type="button"
-                      onClick={() => setSelectedSize(sz)}
-                      className={`py-3 px-4 rounded-2xl border-2 text-xs text-center transition cursor-pointer ${
+                      onClick={() => setSelectedSize(v.size)}
+                      className={`py-2.5 px-3 rounded-2xl border-2 text-left transition cursor-pointer flex flex-col justify-between ${
                         isSelected
-                          ? "border-[#852d2d] bg-[#fbebe9] text-[#852d2d] font-bold shadow-xs"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 font-medium"
+                          ? "border-[#852d2d] bg-[#fbebe9] shadow-xs"
+                          : "border-slate-200 bg-white hover:border-slate-300"
                       }`}
                     >
-                      {sz}
+                      <span className={`text-xs font-bold ${isSelected ? "text-[#852d2d]" : "text-slate-800"}`}>
+                        {v.size}
+                      </span>
+                      <span className={`text-[11px] font-mono mt-0.5 ${isSelected ? "text-[#852d2d] font-bold" : "text-slate-500"}`}>
+                        {formatRupiah(v.price)}
+                      </span>
                     </button>
                   );
                 })}
@@ -308,7 +281,7 @@ export default function PosProductModal({
           <div>
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 mb-2">
               <Layers className="h-3.5 w-3.5 text-[#852d2d]" />
-              <span>Jumlah</span>
+              <span>Jumlah Pesanan</span>
             </div>
             <div className="inline-flex items-center border border-slate-200 rounded-xl bg-white p-1 gap-1">
               <button
@@ -339,7 +312,7 @@ export default function PosProductModal({
           <div>
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 mb-2">
               <FileEdit className="h-3.5 w-3.5 text-[#852d2d]" />
-              <span>Catatan</span>
+              <span>Catatan Khusus</span>
               <span className="text-[11px] font-normal text-slate-400">(Opsional)</span>
             </div>
 
@@ -358,7 +331,7 @@ export default function PosProductModal({
                         : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-amber-50 hover:border-amber-300 font-medium"
                     }`}
                   >
-                    + {chip}
+                    {chip}
                   </button>
                 );
               })}
@@ -368,69 +341,36 @@ export default function PosProductModal({
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Contoh: less sugar, tanpa es, extra shot..."
-              className="w-full text-xs p-3 rounded-2xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#852d2d]/20 focus:border-[#852d2d] transition resize-none"
+              placeholder="Contoh: Manis sedang, jangan terlalu banyak es, dll."
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#852d2d]"
             />
-          </div>
-
-          {/* Subtotal Bar */}
-          <div className="rounded-2xl bg-[#fbebe8] p-4 flex items-center justify-between">
-            <span className="text-xs font-bold text-[#702424]">Subtotal</span>
-            <span className="text-base font-black text-[#702424]">
-              {formatRupiah(subtotal)}
-            </span>
-          </div>
-
-          {/* Status Ketersediaan */}
-          <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-3.5 space-y-1">
-            <div className="text-[11px] font-bold text-slate-800">Status Ketersediaan:</div>
-            {!activeProduct.ingredients || activeProduct.ingredients.length === 0 ? (
-              <div className="flex items-start gap-2 text-xs text-[#b93838] mt-1">
-                <AlertCircle className="h-4 w-4 shrink-0 text-[#b93838] mt-0.5" />
-                <span>
-                  Resep untuk ukuran <strong>{selectedPackaging} {selectedSize}</strong> belum diinput di halaman Resep.
-                </span>
-              </div>
-            ) : !activeProduct.isAvailableByIngredients ? (
-              <div className="flex items-start gap-2 text-xs text-[#b93838] mt-1">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-[#b93838] mt-0.5" />
-                <span>
-                  Bahan baku tidak mencukupi:{" "}
-                  {Array.isArray(activeProduct.missingIngredients)
-                    ? activeProduct.missingIngredients
-                        .map((m) => (typeof m === "string" ? m : m.name))
-                        .join(", ")
-                    : "Stok bahan kurang"}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-start gap-2 text-xs text-emerald-700 mt-1">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
-                <span>
-                  Bahan baku siap diproduksi ({activeProduct.maxProducible ?? activeProduct.stock} porsi tersedia).
-                </span>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Footer Buttons */}
-        <div className="p-4 border-t border-slate-100 bg-white flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="py-3 px-5 rounded-2xl bg-[#f0f5f8] hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer flex-1 text-center"
-          >
-            Batal
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="py-3 px-5 rounded-2xl bg-[#9c5959] hover:bg-[#884747] active:scale-[0.98] text-white font-bold text-xs transition cursor-pointer flex-[2] flex items-center justify-center gap-2 shadow-sm"
-          >
-            <ShoppingCart className="h-4 w-4" />
-            <span>Tambah ke Keranjang</span>
-          </button>
+        {/* Footer Actions */}
+        <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
+          <div>
+            <span className="text-[11px] text-slate-500 font-medium block">Total ({qty} item)</span>
+            <span className="text-xl font-black text-slate-900">{formatRupiah(subtotal)}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="px-5 py-2.5 rounded-xl text-xs font-black bg-[#852d2d] text-white hover:bg-[#6e2323] shadow-md shadow-[#852d2d]/20 transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <ShoppingCart className="h-4 w-4" />
+              <span>Tambah Pesanan</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

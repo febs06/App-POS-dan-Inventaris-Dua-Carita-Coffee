@@ -32,6 +32,9 @@ export async function GET(req: NextRequest) {
             rawMaterial: true,
           },
         },
+        variants: {
+          orderBy: [{ packaging: "asc" }, { size: "asc" }],
+        },
       },
     });
 
@@ -81,7 +84,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, categoryId, price, cost, stock, unit, imageUrl, isActive, ingredients } = body;
+    const { name, categoryId, price, cost, stock, unit, imageUrl, isActive, ingredients, variants } = body;
 
     if (!name?.trim() || !categoryId || price === undefined) {
       return NextResponse.json({ error: "Nama, kategori, dan harga jual wajib diisi" }, { status: 400 });
@@ -111,6 +114,34 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Simpan varian ukuran & kemasan jika dikirim, atau generate default 4 varian
+    if (Array.isArray(variants) && variants.length > 0) {
+      for (const v of variants) {
+        if (v.size && v.price !== undefined) {
+          await prisma.productVariant.create({
+            data: {
+              productId: product.id,
+              packaging: v.packaging || "Cup",
+              size: v.size,
+              price: Number(v.price),
+              cost: Number(v.cost || 0),
+              stock: Number(v.stock || parsedStock),
+              isActive: v.isActive !== undefined ? Boolean(v.isActive) : true,
+            },
+          });
+        }
+      }
+    } else {
+      await prisma.productVariant.createMany({
+        data: [
+          { productId: product.id, packaging: "Cup", size: "Reguler", price: parsedPrice, cost: parsedCost, stock: parsedStock, isActive: true },
+          { productId: product.id, packaging: "Cup", size: "Large", price: parsedPrice + 3000, cost: Math.round(parsedCost * 1.3), stock: parsedStock, isActive: true },
+          { productId: product.id, packaging: "Botol", size: "250 ML", price: parsedPrice + 2000, cost: Math.round(parsedCost * 1.2), stock: 25, isActive: true },
+          { productId: product.id, packaging: "Botol", size: "1.000 ML", price: 55000, cost: 25000, stock: 10, isActive: true },
+        ],
+      });
+    }
+
     // Simpan resep bahan baku jika ada
     if (Array.isArray(ingredients)) {
       for (const ing of ingredients) {
@@ -137,7 +168,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json(product, { status: 201 });
+    const createdProductWithVariants = await prisma.product.findUnique({
+      where: { id: product.id },
+      include: {
+        category: true,
+        variants: { orderBy: [{ packaging: "asc" }, { size: "asc" }] },
+      },
+    });
+
+    return NextResponse.json(createdProductWithVariants, { status: 201 });
   } catch (error) {
     console.error("Failed to create product:", error);
     return NextResponse.json({ error: "Gagal membuat produk" }, { status: 500 });
@@ -148,7 +187,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, name, categoryId, price, cost, stock, unit, imageUrl, isActive, ingredients } = body;
+    const { id, name, categoryId, price, cost, stock, unit, imageUrl, isActive, ingredients, variants } = body;
 
     if (!id) {
       return NextResponse.json({ error: "ID produk wajib disertakan" }, { status: 400 });
@@ -187,6 +226,28 @@ export async function PUT(req: NextRequest) {
       },
     });
 
+    // Simpan / sinkronkan varian ukuran & kemasan jika dikirim
+    if (Array.isArray(variants)) {
+      await prisma.productVariant.deleteMany({
+        where: { productId: id },
+      });
+      for (const v of variants) {
+        if (v.size && v.price !== undefined) {
+          await prisma.productVariant.create({
+            data: {
+              productId: id,
+              packaging: v.packaging || "Cup",
+              size: v.size,
+              price: Number(v.price),
+              cost: Number(v.cost || 0),
+              stock: Number(v.stock || parsedStock),
+              isActive: v.isActive !== undefined ? Boolean(v.isActive) : true,
+            },
+          });
+        }
+      }
+    }
+
     // Simpan resep bahan baku jika dikirim
     if (Array.isArray(ingredients)) {
       await prisma.productIngredient.deleteMany({
@@ -215,7 +276,15 @@ export async function PUT(req: NextRequest) {
       });
     }
 
-    return NextResponse.json(updated);
+    const finalProduct = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        variants: { orderBy: [{ packaging: "asc" }, { size: "asc" }] },
+      },
+    });
+
+    return NextResponse.json(finalProduct);
   } catch (error) {
     console.error("Failed to update product:", error);
     return NextResponse.json({ error: "Gagal memperbarui produk" }, { status: 500 });

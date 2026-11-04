@@ -74,6 +74,7 @@ export async function GET(req: NextRequest) {
         items: {
           include: {
             product: true,
+            variant: true,
           },
         },
         payments: true,
@@ -157,14 +158,23 @@ export async function POST(req: NextRequest) {
         ingredients: {
           include: { rawMaterial: true },
         },
+        variants: true,
       },
     });
 
     const productMap = new Map(dbProducts.map((p) => [p.id, p]));
 
+    // Ambil variant jika ada
+    const variantIds = items.map((it: any) => it.variantId).filter(Boolean);
+    const dbVariants = variantIds.length > 0
+      ? await prisma.productVariant.findMany({ where: { id: { in: variantIds } } })
+      : [];
+    const variantMap = new Map(dbVariants.map((v) => [v.id, v]));
+
     let serverSubtotal = 0;
     const validatedItems: Array<{
       productId: string;
+      variantId?: string | null;
       qty: number;
       price: number;
       notes?: string | null;
@@ -186,12 +196,16 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Produk "${prod.name}" sedang nonaktif` }, { status: 400 });
       }
 
-      // Gunakan prod.price RESMI DARI SERVER
-      serverSubtotal += prod.price * qty;
+      // Tentukan harga resmi: jika ada variant, gunakan harga variant; fallback ke item.price atau prod.price
+      const variant = item.variantId ? variantMap.get(item.variantId) : null;
+      const effectivePrice = variant ? variant.price : (item.price && Number(item.price) > 0 ? Number(item.price) : prod.price);
+
+      serverSubtotal += effectivePrice * qty;
       validatedItems.push({
         productId: prod.id,
+        variantId: variant?.id || null,
         qty,
-        price: prod.price,
+        price: effectivePrice,
         notes: item.notes ? String(item.notes).slice(0, 200) : null,
         product: prod,
       });
@@ -309,6 +323,7 @@ export async function POST(req: NextRequest) {
             items: {
               create: validatedItems.map((item) => ({
                 productId: item.productId,
+                variantId: item.variantId || null,
                 qty: item.qty,
                 price: item.price,
                 notes: item.notes,

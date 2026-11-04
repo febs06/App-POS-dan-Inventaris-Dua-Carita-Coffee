@@ -82,6 +82,8 @@ export default function StockManagementPage() {
 
   // Form Inline "Input Bahan Baru"
   const [newRawName, setNewRawName] = useState("");
+  const [newRawCategory, setNewRawCategory] = useState("Kopi");
+  const [rawCategoryFilter, setRawCategoryFilter] = useState("all");
   const [newRawStock, setNewRawStock] = useState("0");
   const [newRawUnit, setNewRawUnit] = useState("gram");
   const [newRawNotes, setNewRawNotes] = useState("");
@@ -187,7 +189,7 @@ export default function StockManagementPage() {
     if (activeTab === "raw_materials") {
       loadRawMaterials();
     }
-  }, [rawSearchQuery]);
+  }, [rawSearchQuery, rawCategoryFilter]);
 
   // Buka modal WhatsApp otomatis jika diakses via parameter ?openWa=true
   useEffect(() => {
@@ -206,6 +208,7 @@ export default function StockManagementPage() {
     try {
       const params = new URLSearchParams();
       if (rawSearchQuery.trim()) params.append("search", rawSearchQuery.trim());
+      if (rawCategoryFilter && rawCategoryFilter !== "all") params.append("category", rawCategoryFilter);
 
       const res = await fetch(`/api/raw-materials?${params.toString()}`);
       const data = await res.json();
@@ -299,7 +302,7 @@ export default function StockManagementPage() {
           stock: totalInitialStock,
           unit: newRawUnit.trim(),
           supplier: newRawNotes.trim() || undefined,
-          category: "Bahan Minuman",
+          category: newRawCategory,
           buyUnit: newRawBuyUnit.trim() || "pack",
           packSize: pSize,
           lastPackPrice: pPrice,
@@ -774,7 +777,7 @@ export default function StockManagementPage() {
 
             <form onSubmit={handleCreateNewRaw} className="space-y-3.5">
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
-                <div className="sm:col-span-4">
+                <div className="sm:col-span-3">
                   <label className="text-xs font-bold text-slate-700 block mb-1">
                     Nama Bahan <span className="text-rose-500">*</span>
                   </label>
@@ -783,9 +786,29 @@ export default function StockManagementPage() {
                     required
                     value={newRawName}
                     onChange={(e) => setNewRawName(e.target.value)}
-                    placeholder="Contoh: Susu UHT Diamond / Biji Espresso Blend"
+                    placeholder="Contoh: Susu UHT / Sirup Aren"
                     className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500"
                   />
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Kategori <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={newRawCategory}
+                    onChange={(e) => setNewRawCategory(e.target.value)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500 bg-white"
+                  >
+                    <option value="Kopi">Kopi</option>
+                    <option value="Sweetener / Gula / Pemanis">Sweetener / Gula / Pemanis</option>
+                    <option value="Dairy / Susu">Dairy / Susu</option>
+                    <option value="Sirup & Flavour">Sirup & Flavour</option>
+                    <option value="Kemasan & Packaging">Kemasan & Packaging</option>
+                    <option value="Topping & Tambahan">Topping & Tambahan</option>
+                    <option value="Bahan Minuman">Bahan Minuman</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
                 </div>
 
                 <div className="sm:col-span-2">
@@ -795,7 +818,7 @@ export default function StockManagementPage() {
                   <select
                     value={newRawUnit}
                     onChange={(e) => setNewRawUnit(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500 bg-white"
                   >
                     <option value="ml">mililiter (ml)</option>
                     <option value="gram">gram (g)</option>
@@ -806,22 +829,22 @@ export default function StockManagementPage() {
                   </select>
                 </div>
 
-                <div className="sm:col-span-3">
+                <div className="sm:col-span-2">
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Kemasan Beli <span className="text-slate-400 font-normal">(biasa dibeli)</span>
+                    Kemasan Beli <span className="text-slate-400 font-normal">(beli)</span>
                   </label>
                   <input
                     type="text"
                     value={newRawBuyUnit}
                     onChange={(e) => setNewRawBuyUnit(e.target.value)}
-                    placeholder="pack / karton / botol / dus"
+                    placeholder="pack / karton / botol"
                     className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
 
-                <div className="sm:col-span-3">
+                <div className="sm:col-span-2">
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Isi per Kemasan ({newRawUnit})
+                    Isi ({newRawUnit})
                   </label>
                   <input
                     type="number"
@@ -968,8 +991,27 @@ export default function StockManagementPage() {
                   )}
                 </button>
 
+                {/* Filter Kategori Bahan */}
+                <div className="w-full sm:w-48">
+                  <select
+                    value={rawCategoryFilter}
+                    onChange={(e) => setRawCategoryFilter(e.target.value)}
+                    className="w-full text-xs py-2 px-2.5 rounded-xl border border-slate-300 font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-amber-500"
+                  >
+                    <option value="all">Semua Kategori</option>
+                    <option value="Kopi">Kopi</option>
+                    <option value="Sweetener / Gula / Pemanis">Sweetener / Gula / Pemanis</option>
+                    <option value="Dairy / Susu">Dairy / Susu</option>
+                    <option value="Sirup & Flavour">Sirup & Flavour</option>
+                    <option value="Kemasan & Packaging">Kemasan & Packaging</option>
+                    <option value="Topping & Tambahan">Topping & Tambahan</option>
+                    <option value="Bahan Minuman">Bahan Minuman</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                </div>
+
                 {/* Kolom Pencarian Bahan */}
-                <div className="relative w-full sm:w-64">
+                <div className="relative w-full sm:w-56">
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                   <input
                     type="text"
@@ -2238,14 +2280,16 @@ export default function StockManagementPage() {
                   <select
                     value={editRawCategory}
                     onChange={(e) => setEditRawCategory(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-semibold text-slate-900"
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 font-semibold text-slate-900 bg-white"
                   >
-                    <option value="Bahan Minuman">Bahan Minuman</option>
                     <option value="Kopi">Kopi</option>
+                    <option value="Sweetener / Gula / Pemanis">Sweetener / Gula / Pemanis</option>
+                    <option value="Dairy / Susu">Dairy / Susu</option>
                     <option value="Dairy/Susu">Dairy/Susu</option>
                     <option value="Sirup & Flavour">Sirup & Flavour</option>
                     <option value="Kemasan & Packaging">Kemasan & Packaging</option>
                     <option value="Topping & Tambahan">Topping & Tambahan</option>
+                    <option value="Bahan Minuman">Bahan Minuman</option>
                     <option value="Lainnya">Lainnya</option>
                   </select>
                 </div>
