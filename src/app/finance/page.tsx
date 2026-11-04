@@ -70,7 +70,7 @@ const CATEGORY_LABELS: Record<string, { label: string; bg: string; text: string;
   LAINNYA: { label: "Lainnya", bg: "bg-slate-500/10", text: "text-slate-400", border: "border-slate-500/30" },
 };
 
-const MONTH_TABS = [
+const DEFAULT_MONTH_TABS = [
   { label: "Semua Bulan", value: "all" },
   { label: "April 2026", value: "4" },
   { label: "Mei 2026", value: "5" },
@@ -79,15 +79,20 @@ const MONTH_TABS = [
   { label: "Agustus 2026", value: "8" },
   { label: "September 2026", value: "9" },
   { label: "Oktober 2026", value: "10" },
+  { label: "November 2026", value: "11" },
+  { label: "Desember 2026", value: "12" },
 ];
 
-const RAB_MONTH_TABS = [
+const DEFAULT_RAB_MONTH_TABS = [
   { label: "Semua Bulan", value: "all" },
   { label: "Mei 2026", value: "MEI 2026" },
   { label: "Juni 2026 (Estimasi)", value: "JUNI 2026" },
   { label: "Juli 2026", value: "JULI 2026" },
   { label: "Agustus 2026", value: "AGUSTUS 2026" },
   { label: "September 2026", value: "SEPTEMBER 2026" },
+  { label: "Oktober 2026", value: "OKTOBER 2026" },
+  { label: "November 2026", value: "NOVEMBER 2026" },
+  { label: "Desember 2026", value: "DESEMBER 2026" },
 ];
 
 export default function FinancePage() {
@@ -103,6 +108,9 @@ export default function FinancePage() {
   const [selectedType, setSelectedType] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Dynamic Tabs (derived from API response or defaults)
+  const monthTabs = summary?.availableMonths?.length ? summary.availableMonths : DEFAULT_MONTH_TABS;
 
   // Modal Kas State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -123,6 +131,8 @@ export default function FinancePage() {
   const [selectedRabMonth, setSelectedRabMonth] = useState("all");
   const [selectedFunder, setSelectedFunder] = useState("all");
   const [rabSearchQuery, setRabSearchQuery] = useState("");
+
+  const rabMonthTabs = rabSummary?.availableMonths?.length ? rabSummary.availableMonths : DEFAULT_RAB_MONTH_TABS;
 
   // Modal RAB State
   const [isRabModalOpen, setIsRabModalOpen] = useState(false);
@@ -520,9 +530,9 @@ export default function FinancePage() {
                 </span>
                 <p className="text-xs text-slate-400 mt-1">
                   {selectedAccount === "CASH"
-                    ? "Posisi kas fisik per 14/9/2026"
+                    ? `Posisi kas fisik per ${formatDate(summary?.latestCashDate)}`
                     : selectedAccount === "QRIS"
-                    ? "Posisi saldo QRIS per 15/9/2026"
+                    ? `Posisi saldo QRIS per ${formatDate(summary?.latestQrisDate)}`
                     : "Total dana cair tunai + saldo QRIS"}
                 </p>
               </div>
@@ -574,7 +584,9 @@ export default function FinancePage() {
                   {records.length} Baris
                 </span>
                 <p className="text-xs text-slate-400 mt-1">
-                  {selectedAccount === "all" ? "126 Cash + 108 QRIS" : `Transaksi akun ${selectedAccount}`}
+                  {selectedAccount === "all"
+                    ? `${summary?.totalCashCount || 0} Cash + ${summary?.totalQrisCount || 0} QRIS`
+                    : `Transaksi akun ${selectedAccount}`}
                 </p>
               </div>
             </div>
@@ -582,7 +594,7 @@ export default function FinancePage() {
 
           {/* Month Tabs Bar */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-800 scrollbar-none">
-            {MONTH_TABS.map((tab) => (
+            {monthTabs.map((tab: any) => (
               <button
                 key={tab.value}
                 onClick={() => setSelectedMonth(tab.value)}
@@ -954,7 +966,7 @@ export default function FinancePage() {
 
           {/* Month Tabs Bar for RAB */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-800 scrollbar-none">
-            {RAB_MONTH_TABS.map((tab) => (
+            {rabMonthTabs.map((tab: any) => (
               <button
                 key={tab.value}
                 onClick={() => setSelectedRabMonth(tab.value)}
@@ -1317,6 +1329,10 @@ export default function FinancePage() {
                     <option value="JUNI 2026">JUNI 2026</option>
                     <option value="JULI 2026">JULI 2026</option>
                     <option value="AGUSTUS 2026">AGUSTUS 2026</option>
+                    <option value="SEPTEMBER 2026">SEPTEMBER 2026</option>
+                    <option value="OKTOBER 2026">OKTOBER 2026</option>
+                    <option value="NOVEMBER 2026">NOVEMBER 2026</option>
+                    <option value="DESEMBER 2026">DESEMBER 2026</option>
                   </select>
                 </div>
                 <div>

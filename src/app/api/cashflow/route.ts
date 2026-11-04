@@ -36,8 +36,16 @@ export async function GET(req: NextRequest) {
 
     // Filter by month/year if specified
     if (month && month !== "all") {
-      const monthNum = parseInt(month, 10);
-      const yearNum = parseInt(year, 10);
+      let monthNum: number;
+      let yearNum: number;
+      if (month.includes("-")) {
+        const parts = month.split("-");
+        yearNum = parseInt(parts[0], 10);
+        monthNum = parseInt(parts[1], 10);
+      } else {
+        monthNum = parseInt(month, 10);
+        yearNum = parseInt(year, 10);
+      }
       const startDate = new Date(Date.UTC(yearNum, monthNum - 1, 1, 0, 0, 0));
       const endDate = new Date(Date.UTC(yearNum, monthNum, 0, 23, 59, 59, 999));
       where.date = {
@@ -82,6 +90,52 @@ export async function GET(req: NextRequest) {
     if (account === "CASH") currentBalance = cashBalance;
     if (account === "QRIS") currentBalance = qrisBalance;
 
+    // Indonesian Month Names
+    const monthNames = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+
+    // Compute distinct months present across all records
+    const allRecordsDates = await prisma.cashRecord.findMany({
+      select: { date: true },
+      orderBy: { date: "asc" },
+    });
+
+    const monthsMap = new Map<string, { label: string; value: string; year: number; month: number }>();
+
+    // Baseline: April to December 2026
+    for (let m = 4; m <= 12; m++) {
+      const key = `2026-${m}`;
+      monthsMap.set(key, {
+        label: `${monthNames[m - 1]} 2026`,
+        value: String(m),
+        year: 2026,
+        month: m,
+      });
+    }
+
+    // Include any other months found from records (e.g. 2027 or earlier months)
+    for (const r of allRecordsDates) {
+      const d = new Date(r.date);
+      const m = d.getUTCMonth() + 1;
+      const y = d.getUTCFullYear();
+      const key = `${y}-${m}`;
+      if (!monthsMap.has(key)) {
+        monthsMap.set(key, {
+          label: `${monthNames[m - 1]} ${y}`,
+          value: y === 2026 ? String(m) : key,
+          year: y,
+          month: m,
+        });
+      }
+    }
+
+    const availableMonths = [
+      { label: "Semua Bulan", value: "all" },
+      ...Array.from(monthsMap.values()).sort((a, b) => a.year - b.year || a.month - b.month)
+    ];
+
     return NextResponse.json({
       records,
       summary: {
@@ -89,10 +143,15 @@ export async function GET(req: NextRequest) {
         cashBalance,
         qrisBalance,
         totalLiquidity,
+        latestCashDate: latestCash ? latestCash.date : null,
+        latestQrisDate: latestQris ? latestQris.date : null,
+        totalCashCount: allCashRecords.length,
+        totalQrisCount: allQrisRecords.length,
         totalMasuk: filteredMasuk,
         totalKeluar: filteredKeluar,
         netCashFlow: filteredMasuk - filteredKeluar,
         totalTransactions: records.length,
+        availableMonths,
       },
     });
   } catch (error: any) {

@@ -54,6 +54,37 @@ export async function GET(req: NextRequest) {
     // Filtered subtotal
     const filteredTotal = items.reduce((acc, i) => acc + i.totalPrice, 0);
 
+    const standardRabMonths = [
+      "MEI 2026",
+      "JUNI 2026",
+      "JULI 2026",
+      "AGUSTUS 2026",
+      "SEPTEMBER 2026",
+      "OKTOBER 2026",
+      "NOVEMBER 2026",
+      "DESEMBER 2026",
+    ];
+    const rabMonthSet = new Set(standardRabMonths);
+    for (const item of allItems) {
+      if (item.month) rabMonthSet.add(item.month.trim().toUpperCase());
+    }
+
+    const availableMonths = [
+      { label: "Semua Bulan", value: "all" },
+      ...Array.from(rabMonthSet).map((m) => {
+        let label = m;
+        if (m === "JUNI 2026") label = "Juni 2026 (Estimasi)";
+        else {
+          label = m
+            .toLowerCase()
+            .split(" ")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ");
+        }
+        return { label, value: m };
+      }),
+    ];
+
     return NextResponse.json({
       items,
       summary: {
@@ -62,6 +93,7 @@ export async function GET(req: NextRequest) {
         totalItems: items.length,
         monthTotals,
         funderTotals,
+        availableMonths,
       },
     });
   } catch (error: any) {
