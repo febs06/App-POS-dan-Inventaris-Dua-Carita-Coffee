@@ -78,6 +78,7 @@ const MONTH_TABS = [
   { label: "Juli 2026", value: "7" },
   { label: "Agustus 2026", value: "8" },
   { label: "September 2026", value: "9" },
+  { label: "Oktober 2026", value: "10" },
 ];
 
 const RAB_MONTH_TABS = [
@@ -86,6 +87,7 @@ const RAB_MONTH_TABS = [
   { label: "Juni 2026 (Estimasi)", value: "JUNI 2026" },
   { label: "Juli 2026", value: "JULI 2026" },
   { label: "Agustus 2026", value: "AGUSTUS 2026" },
+  { label: "September 2026", value: "SEPTEMBER 2026" },
 ];
 
 export default function FinancePage() {
