@@ -32,6 +32,7 @@
   ],
   "exclude": [
     "node_modules",
+    "backups",
     "prisma/seed-recipes.ts",
     "scripts/import_to_neon.ts",
     "scripts/seed_bottle_and_caffe_latte.ts",

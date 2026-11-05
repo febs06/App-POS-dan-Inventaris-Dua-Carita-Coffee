@@ -195,23 +195,23 @@ export default function PosProductModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-stone-950/65 backdrop-blur-xs animate-in fade-in duration-200">
       <div
-        className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col max-h-[92vh] border border-slate-200/80 animate-in zoom-in-95 duration-200"
+        className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col max-h-[92vh] border border-[#e7ded5] animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-5 pb-4 border-b border-slate-100 flex items-start justify-between gap-3">
+        <div className="p-5 pb-4 border-b border-[#f0e8df] flex items-start justify-between gap-3 bg-[#faf8f5]">
           <div>
-            <h2 className="text-xl font-black text-slate-900 tracking-tight leading-snug">
+            <h2 className="text-xl font-black text-stone-900 tracking-tight leading-snug">
               {baseDisplayName}
             </h2>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-lg font-black text-[#852d2d]">
+              <span className="text-xl font-black text-[#5c3826] tabular-nums">
                 {formatRupiah(currentPrice)}
               </span>
               {currentVariant && (
-                <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-[#f3eae0] text-[#5c3826] border border-[#dccdc0]">
                   {currentVariant.packaging} {currentVariant.size}
                 </span>
               )}
@@ -219,7 +219,7 @@ export default function PosProductModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+            className="p-1.5 rounded-full text-stone-400 hover:text-stone-700 hover:bg-[#ede5dc] transition cursor-pointer"
             aria-label="Tutup Modal"
           >
             <X className="h-5 w-5" />
@@ -231,8 +231,8 @@ export default function PosProductModal({
           {/* Packaging Section (Botol / Cup) */}
           {uniquePackagings.length > 1 && (
             <div>
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 mb-2">
-                <Package className="h-3.5 w-3.5 text-[#852d2d]" />
+              <div className="flex items-center gap-1.5 text-xs font-bold text-stone-800 mb-2">
+                <Package className="h-4 w-4 text-[#5c3826]" />
                 <span>Pilihan Kemasan</span>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -247,16 +247,16 @@ export default function PosProductModal({
                       onClick={() => handleSelectPackaging(pack)}
                       className={`flex flex-col items-center justify-center py-3.5 px-3 rounded-2xl border-2 transition cursor-pointer ${
                         isSelected
-                          ? "border-[#852d2d] bg-[#fbebe9] text-[#852d2d] font-bold shadow-xs"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 font-semibold"
+                          ? "border-[#5c3826] bg-[#fbf5ee] text-[#5c3826] font-bold shadow-xs"
+                          : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 font-semibold"
                       }`}
                     >
                       {isBotol ? (
-                        <FlaskConical className={`h-6 w-6 mb-1.5 ${isSelected ? "text-[#852d2d]" : "text-slate-500"}`} />
+                        <FlaskConical className={`h-6 w-6 mb-1.5 ${isSelected ? "text-[#5c3826]" : "text-stone-500"}`} />
                       ) : (
-                        <Coffee className={`h-6 w-6 mb-1.5 ${isSelected ? "text-[#852d2d]" : "text-slate-500"}`} />
+                        <Coffee className={`h-6 w-6 mb-1.5 ${isSelected ? "text-[#5c3826]" : "text-stone-500"}`} />
                       )}
-                      <span className="text-xs">{pack}</span>
+                      <span className="text-sm font-bold">{pack}</span>
                     </button>
                   );
                 })}
@@ -267,8 +267,8 @@ export default function PosProductModal({
           {/* Ukuran (Size) Section */}
           {availableVariantsForPackaging.length > 0 && (
             <div>
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 mb-2">
-                <Tag className="h-3.5 w-3.5 text-[#852d2d]" />
+              <div className="flex items-center gap-1.5 text-xs font-bold text-stone-800 mb-2">
+                <Tag className="h-4 w-4 text-[#5c3826]" />
                 <span>Pilihan Ukuran ({selectedPackaging})</span>
               </div>
               <div className="grid grid-cols-2 gap-2.5">
@@ -283,32 +283,32 @@ export default function PosProductModal({
                       key={v.id || v.size}
                       type="button"
                       onClick={() => setSelectedSize(v.size)}
-                      className={`py-2.5 px-3 rounded-2xl border-2 text-left transition cursor-pointer flex flex-col justify-between gap-1.5 ${
+                      className={`py-3 px-3.5 rounded-2xl border-2 text-left transition cursor-pointer flex flex-col justify-between gap-1.5 ${
                         isSelected
                           ? isOutOfStock
                             ? "border-rose-400 bg-rose-50/70 shadow-xs ring-1 ring-rose-400"
-                            : "border-[#852d2d] bg-[#fbebe9] shadow-xs"
+                            : "border-[#5c3826] bg-[#fbf5ee] shadow-xs"
                           : isOutOfStock
                           ? "border-rose-200 bg-rose-50/30 hover:border-rose-300"
-                          : "border-slate-200 bg-white hover:border-slate-300"
+                          : "border-stone-200 bg-white hover:border-stone-300"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-1">
-                        <span className={`text-xs font-bold ${isSelected ? (isOutOfStock ? "text-rose-900" : "text-[#852d2d]") : "text-slate-800"}`}>
+                        <span className={`text-sm font-bold ${isSelected ? (isOutOfStock ? "text-rose-900" : "text-[#5c3826]") : "text-stone-800"}`}>
                           {v.size}
                         </span>
                         {/* Real-time readiness badge */}
                         {isOutOfStock ? (
-                          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-300">
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-300">
                             Bahan Habis
                           </span>
                         ) : (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
                             ✓ {v.maxProducible !== null && v.maxProducible !== undefined ? `${v.maxProducible} Porsi` : "Tersedia"}
                           </span>
                         )}
                       </div>
-                      <span className={`text-[11px] font-mono ${isSelected ? (isOutOfStock ? "text-rose-700 font-bold" : "text-[#852d2d] font-bold") : "text-slate-500"}`}>
+                      <span className={`text-xs tabular-nums font-bold ${isSelected ? (isOutOfStock ? "text-rose-700" : "text-[#5c3826]") : "text-stone-500"}`}>
                         {formatRupiah(v.price)}
                       </span>
                     </button>
@@ -322,7 +322,7 @@ export default function PosProductModal({
                   <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
                   <div>
                     <div className="font-bold">Bahan Baku Tidak Cukup di Gudang</div>
-                    <div className="text-[11px] text-rose-600 mt-0.5">
+                    <div className="text-xs text-rose-700 mt-0.5">
                       Varian <strong>{currentVariant?.packaging} {currentVariant?.size}</strong> tidak dapat diproses kasir karena bahan baku habis:{" "}
                       <span className="font-semibold">
                         {currentVariant?.missingIngredients && currentVariant.missingIngredients.length > 0
@@ -338,41 +338,41 @@ export default function PosProductModal({
 
           {/* Jumlah Stepper */}
           <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 mb-2">
-              <Layers className="h-3.5 w-3.5 text-[#852d2d]" />
+            <div className="flex items-center gap-1.5 text-xs font-bold text-stone-800 mb-2">
+              <Layers className="h-4 w-4 text-[#5c3826]" />
               <span>Jumlah Pesanan</span>
             </div>
-            <div className="inline-flex items-center border border-slate-200 rounded-xl bg-white p-1 gap-1">
+            <div className="inline-flex items-center border border-stone-200 rounded-2xl bg-white p-1 gap-1">
               <button
                 type="button"
                 onClick={() => setQty((prev) => Math.max(1, prev - 1))}
-                className="h-8 w-8 rounded-lg border border-slate-200 flex items-center justify-center font-bold text-[#852d2d] hover:bg-slate-100 transition cursor-pointer"
+                className="h-9 w-9 rounded-xl border border-stone-200 flex items-center justify-center font-bold text-[#5c3826] hover:bg-[#fbf5ee] transition cursor-pointer"
               >
-                <Minus className="h-3.5 w-3.5" />
+                <Minus className="h-4 w-4" />
               </button>
               <input
                 type="number"
                 min="1"
                 value={qty}
                 onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-12 text-center text-sm font-black text-slate-900 focus:outline-none"
+                className="w-14 text-center text-base font-black text-stone-900 tabular-nums focus:outline-none"
               />
               <button
                 type="button"
                 onClick={() => setQty((prev) => prev + 1)}
-                className="h-8 w-8 rounded-lg border border-slate-200 flex items-center justify-center font-bold text-[#852d2d] hover:bg-slate-100 transition cursor-pointer"
+                className="h-9 w-9 rounded-xl border border-stone-200 flex items-center justify-center font-bold text-[#5c3826] hover:bg-[#fbf5ee] transition cursor-pointer"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-4 w-4" />
               </button>
             </div>
           </div>
 
           {/* Catatan (Opsional) */}
           <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 mb-2">
-              <FileEdit className="h-3.5 w-3.5 text-[#852d2d]" />
+            <div className="flex items-center gap-1.5 text-xs font-bold text-stone-800 mb-2">
+              <FileEdit className="h-4 w-4 text-[#5c3826]" />
               <span>Catatan Khusus</span>
-              <span className="text-[11px] font-normal text-slate-400">(Opsional)</span>
+              <span className="text-xs font-normal text-stone-500">(Opsional)</span>
             </div>
 
             {/* Quick chips suggestions */}
@@ -384,10 +384,10 @@ export default function PosProductModal({
                     key={chip}
                     type="button"
                     onClick={() => handleToggleNoteChip(chip)}
-                    className={`text-[10px] px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                    className={`text-xs px-3 py-1.5 rounded-xl border transition cursor-pointer ${
                       isActive
-                        ? "bg-[#fbebe9] border-[#852d2d] text-[#852d2d] font-bold"
-                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-amber-50 hover:border-amber-300 font-medium"
+                        ? "bg-[#fbf5ee] border-[#5c3826] text-[#5c3826] font-bold"
+                        : "bg-[#faf8f5] border-stone-200 text-stone-700 hover:bg-[#ede5dc] hover:border-stone-300 font-medium"
                     }`}
                   >
                     {chip}
@@ -401,23 +401,23 @@ export default function PosProductModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Contoh: Manis sedang, jangan terlalu banyak es, dll."
-              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#852d2d]"
+              className="w-full text-sm p-3 rounded-xl border border-stone-200 text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-[#5c3826]"
             />
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 border-t border-[#f0e8df] bg-[#faf8f5] flex items-center justify-between gap-3">
           <div>
-            <span className="text-[11px] text-slate-500 font-medium block">Total ({qty} item)</span>
-            <span className="text-xl font-black text-slate-900">{formatRupiah(subtotal)}</span>
+            <span className="text-xs text-stone-500 font-medium block">Total ({qty} item)</span>
+            <span className="text-2xl font-black text-[#5c3826] tabular-nums">{formatRupiah(subtotal)}</span>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition cursor-pointer"
+              className="px-4 py-2.5 rounded-xl text-xs font-bold text-stone-600 hover:bg-stone-200 transition cursor-pointer"
             >
               Batal
             </button>
@@ -425,10 +425,10 @@ export default function PosProductModal({
               type="button"
               disabled={isCurrentVariantOutOfStock}
               onClick={handleSubmit}
-              className={`px-5 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${
+              className={`px-5 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 ${
                 isCurrentVariantOutOfStock
                   ? "bg-rose-100 text-rose-700 border border-rose-300 cursor-not-allowed opacity-90"
-                  : "bg-[#852d2d] text-white hover:bg-[#6e2323] shadow-md shadow-[#852d2d]/20 cursor-pointer"
+                  : "bg-[#5c3826] text-white hover:bg-[#46291a] shadow-md shadow-[#5c3826]/20 cursor-pointer"
               }`}
             >
               <ShoppingCart className="h-4 w-4" />

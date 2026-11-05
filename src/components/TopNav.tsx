@@ -126,26 +126,26 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-30 h-14 sm:h-16 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-3 sm:px-6 flex items-center justify-between gap-2 overflow-x-clip">
+      <header className="sticky top-0 z-30 h-14 sm:h-16 w-full bg-[#faf8f5]/95 dark:bg-[#1c1512]/95 backdrop-blur-md border-b border-[#e7ded5] dark:border-[#2e231d] px-3 sm:px-6 flex items-center justify-between gap-2 overflow-x-clip">
         {/* Left Side: Hamburger & Active Event & Mode Switcher */}
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={onToggleSidebar}
-            className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden shrink-0 border border-slate-200/80 dark:border-slate-700/60"
+            className="p-2 rounded-xl text-stone-700 dark:text-stone-200 hover:bg-[#ede5dc] dark:hover:bg-[#2e231d] lg:hidden shrink-0 border border-[#e7ded5] dark:border-[#2e231d]"
             aria-label="Toggle Menu"
           >
             <Menu className="h-4 w-4" />
           </button>
 
           {/* Dual-Mode Quick Pill */}
-          <div className="hidden sm:flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold shrink-0">
+          <div className="hidden sm:flex items-center p-0.5 rounded-xl bg-[#ede5dc]/80 dark:bg-[#251b16] border border-[#d8ccc0] dark:border-[#382b23] text-xs font-bold shrink-0">
             <button
               type="button"
               onClick={() => handleToggleMode("kasir")}
-              className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg transition cursor-pointer text-xs ${
                 appMode === "kasir"
-                  ? "bg-amber-500 text-slate-950 font-black shadow-xs"
-                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                  ? "bg-amber-500 text-stone-950 font-black shadow-xs"
+                  : "text-stone-600 hover:text-stone-950 dark:text-stone-400 dark:hover:text-white"
               }`}
               title="Beralih ke App Kasir Booth"
             >
@@ -154,10 +154,10 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
             <button
               type="button"
               onClick={() => handleToggleMode("inventaris")}
-              className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg transition cursor-pointer text-xs ${
                 appMode === "inventaris"
-                  ? "bg-amber-500 text-slate-950 font-black shadow-xs"
-                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                  ? "bg-amber-500 text-stone-950 font-black shadow-xs"
+                  : "text-stone-600 hover:text-stone-950 dark:text-stone-400 dark:hover:text-white"
               }`}
               title="Beralih ke App Inventaris & Back-Office"
             >
@@ -167,18 +167,18 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
 
           {/* Ongoing Event Status */}
           {activeEvent ? (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 shrink-0">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 shrink-0">
               <span className="relative flex h-2 w-2 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="font-bold text-[11px] sm:text-xs truncate max-w-[110px] sm:max-w-[180px]">{activeEvent.name}</span>
-              <span className="hidden md:inline text-emerald-600 dark:text-emerald-400">({activeEvent.location})</span>
+              <span className="font-bold text-xs truncate max-w-[120px] sm:max-w-[180px]">{activeEvent.name}</span>
+              <span className="hidden md:inline text-emerald-700 dark:text-emerald-400">({activeEvent.location})</span>
             </div>
           ) : (
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 shrink-0">
-              <Calendar className="h-3.5 w-3.5" />
-              <span>Booth Mandiri</span>
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ede5dc]/70 dark:bg-[#251b16] border border-[#d8ccc0] dark:border-[#382b23] text-xs text-stone-700 dark:text-stone-300 shrink-0">
+              <Calendar className="h-3.5 w-3.5 text-stone-500" />
+              <span className="font-semibold">Booth Mandiri</span>
             </div>
           )}
         </div>
@@ -190,11 +190,11 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
             <Link
               href="/stock?openWa=true"
               title={`${lowStockCount} bahan baku/produk stok menipis! Klik untuk kirim rekap WhatsApp`}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-[11px] font-bold hover:bg-amber-100 transition shrink-0"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs font-bold hover:bg-amber-100 transition shrink-0"
             >
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
               <span className="hidden md:inline font-semibold">Kritis:</span>
-              <span>{lowStockCount}</span>
+              <span className="tabular-nums">{lowStockCount}</span>
             </Link>
           )}
 
@@ -202,27 +202,26 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
           <div className="flex items-center gap-1">
             <button
               onClick={() => setIsCashierModalOpen(true)}
-              className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-xs text-slate-700 dark:text-slate-200 transition cursor-pointer shrink-0"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-[#d8ccc0] dark:border-[#382b23] bg-[#f5ede4] dark:bg-[#251b16] hover:bg-[#ede3d8] dark:hover:bg-[#2f221c] text-xs text-stone-800 dark:text-stone-200 transition cursor-pointer shrink-0"
               title="Klik untuk ganti shift kasir"
             >
-              <UserCheck className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-              <span className="hidden md:inline text-slate-500 font-medium">Kasir:</span>
-              <span className="font-bold text-[11px] sm:text-xs truncate max-w-[65px] sm:max-w-[110px]">{activeCashier?.name || "Kasir"}</span>
+              <UserCheck className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="hidden md:inline text-stone-500 dark:text-stone-400 font-medium">Kasir:</span>
+              <span className="font-bold text-xs truncate max-w-[80px] sm:max-w-[120px]">{activeCashier?.name || "Kasir"}</span>
             </button>
             <button
               onClick={handleLogout}
-              className="hidden md:inline-flex p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 dark:hover:bg-slate-700/80 text-slate-600 dark:text-slate-300 transition shrink-0 cursor-pointer"
+              className="hidden md:inline-flex p-1.5 rounded-lg border border-[#d8ccc0] dark:border-[#382b23] bg-[#f5ede4] dark:bg-[#251b16] hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 dark:hover:bg-[#2f221c] text-stone-600 dark:text-stone-300 transition shrink-0 cursor-pointer"
               title="Keluar / Kunci Kiosk"
             >
               <Lock className="h-3.5 w-3.5" />
             </button>
-
           </div>
 
           {/* Fast Action Buttons */}
           <Link
             href="/po"
-            className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 text-xs font-semibold hover:bg-violet-100 transition shrink-0"
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ede5dc] dark:bg-[#251b16] text-[#5c3826] dark:text-amber-300 border border-[#d8ccc0] dark:border-[#382b23] text-xs font-bold hover:bg-[#e4dacd] transition shrink-0"
           >
             <PlusCircle className="h-3.5 w-3.5" />
             <span>PO</span>
@@ -230,7 +229,7 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
 
           <Link
             href="/pos"
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-xs transition shrink-0"
+            className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-black shadow-xs transition shrink-0"
           >
             <ShoppingCart className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Kasir POS</span>

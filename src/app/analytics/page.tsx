@@ -80,26 +80,26 @@ export default function AnalyticsPage() {
 
   const monthlyRevenue = data?.monthlyRevenue || [];
 
-  const COLORS = ["#f59e0b", "#8b5cf6", "#10b981", "#0ea5e9", "#ec4899", "#6366f1"];
+  const COLORS = ["#d97706", "#5c3826", "#15803d", "#b45309", "#9a3412", "#78350f"];
 
   return (
     <div className="space-y-6">
       {/* Header & Main Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Visual Analytics & Omzet</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h1 className="text-2xl font-black text-stone-900 dark:text-stone-100 tracking-tight">Visual Analytics & Omzet</h1>
+          <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
             Analisis data tren omzet harian & bulanan, perbandingan event bazaar, dan performa produk
           </p>
         </div>
 
         {activeTab === "daily" ? (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 font-semibold">Rentang Waktu:</span>
+            <span className="text-xs text-stone-500 dark:text-stone-400 font-bold">Rentang Waktu:</span>
             <select
               value={range}
               onChange={(e) => setRange(e.target.value)}
-              className="text-xs font-bold bg-white text-slate-900 border border-slate-300 rounded-xl px-3 py-2 shadow-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
+              className="text-xs font-bold bg-white dark:bg-[#251b16] text-stone-900 dark:text-stone-100 border border-[#d8ccc0] dark:border-[#382b23] rounded-xl px-3 py-2 shadow-xs focus:outline-none focus:ring-2 focus:ring-[#5c3826]"
             >
               <option value="all">Semua Waktu (All Time)</option>
               <option value="2026">Sepanjang Tahun 2026</option>
@@ -112,11 +112,11 @@ export default function AnalyticsPage() {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 font-semibold">Pilih Tahun:</span>
+            <span className="text-xs text-stone-500 dark:text-stone-400 font-bold">Pilih Tahun:</span>
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="text-xs font-bold bg-white text-slate-900 border border-slate-300 rounded-xl px-3 py-2 shadow-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
+              className="text-xs font-bold bg-white dark:bg-[#251b16] text-stone-900 dark:text-stone-100 border border-[#d8ccc0] dark:border-[#382b23] rounded-xl px-3 py-2 shadow-xs focus:outline-none focus:ring-2 focus:ring-[#5c3826]"
             >
               <option value="2026">Tahun 2026 (Aktif)</option>
               <option value="2025">Tahun 2025</option>
@@ -127,13 +127,13 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Tabs Switcher */}
-      <div className="flex gap-2 border-b border-slate-200">
+      <div className="flex gap-2 border-b border-[#e7ded5] dark:border-[#2e231d]">
         <button
           onClick={() => setActiveTab("daily")}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer ${
             activeTab === "daily"
-              ? "border-amber-500 text-amber-600 bg-amber-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-[#5c3826] text-[#5c3826] dark:text-amber-400 bg-[#fbf5ee] dark:bg-[#251b16] rounded-t-xl"
+              : "border-transparent text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
           }`}
         >
           <BarChart3 className="h-4 w-4" />
@@ -144,8 +144,8 @@ export default function AnalyticsPage() {
           onClick={() => setActiveTab("monthly")}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer ${
             activeTab === "monthly"
-              ? "border-amber-500 text-amber-600 bg-amber-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-[#5c3826] text-[#5c3826] dark:text-amber-400 bg-[#fbf5ee] dark:bg-[#251b16] rounded-t-xl"
+              : "border-transparent text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
           }`}
         >
           <CalendarDays className="h-4 w-4" />
@@ -154,72 +154,72 @@ export default function AnalyticsPage() {
       </div>
 
       {loading ? (
-        <div className="p-16 text-center text-slate-400 text-sm">
+        <div className="p-16 text-center text-stone-400 text-sm">
           Memuat visual analytics & omzet...
         </div>
       ) : activeTab === "daily" ? (
         <>
           {/* 4 Stat Cards Harian */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center justify-between">
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#1c1512] border border-[#e7ded5] dark:border-[#2e231d] shadow-xs flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                <span className="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider">
                   Total Omzet
                 </span>
-                <div className="text-2xl font-black text-slate-900 mt-1">
+                <div className="text-2xl font-black text-[#5c3826] dark:text-amber-400 mt-1 tabular-nums">
                   {formatRupiah(summary.totalRevenue)}
                 </div>
-                <div className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  Laba Bersih: {formatRupiah(summary.grossProfit)}
+                <div className="text-xs text-emerald-700 dark:text-emerald-400 font-bold mt-1 flex items-center gap-1 tabular-nums">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Laba: {formatRupiah(summary.grossProfit)}
                 </div>
               </div>
-              <div className="h-12 w-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+              <div className="h-12 w-12 rounded-xl bg-[#fbf5ee] dark:bg-[#251b16] text-[#5c3826] dark:text-amber-400 flex items-center justify-center">
                 <DollarSign className="h-6 w-6" />
               </div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center justify-between">
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#1c1512] border border-[#e7ded5] dark:border-[#2e231d] shadow-xs flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                <span className="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider">
                   Total Transaksi
                 </span>
-                <div className="text-2xl font-black text-slate-900 mt-1">
-                  {summary.totalOrders} <span className="text-sm font-medium text-slate-500">order</span>
+                <div className="text-2xl font-black text-stone-900 dark:text-stone-100 mt-1 tabular-nums">
+                  {summary.totalOrders} <span className="text-xs font-medium text-stone-500">order</span>
                 </div>
-                <div className="text-[11px] text-slate-500 mt-1">PO dan Kasir Direct</div>
+                <div className="text-xs text-stone-500 dark:text-stone-400 mt-1">PO dan Kasir Direct</div>
               </div>
-              <div className="h-12 w-12 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center">
+              <div className="h-12 w-12 rounded-xl bg-[#fbf5ee] dark:bg-[#251b16] text-[#5c3826] dark:text-amber-400 flex items-center justify-center">
                 <ShoppingCart className="h-6 w-6" />
               </div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center justify-between">
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#1c1512] border border-[#e7ded5] dark:border-[#2e231d] shadow-xs flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                <span className="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider">
                   Rata-rata Order
                 </span>
-                <div className="text-2xl font-black text-slate-900 mt-1">
+                <div className="text-2xl font-black text-stone-900 dark:text-stone-100 mt-1 tabular-nums">
                   {formatRupiah(summary.avgOrderValue)}
                 </div>
-                <div className="text-[11px] text-slate-500 mt-1">Average ticket per transaksi</div>
+                <div className="text-xs text-stone-500 dark:text-stone-400 mt-1">Average ticket transaksi</div>
               </div>
-              <div className="h-12 w-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <div className="h-12 w-12 rounded-xl bg-[#fbf5ee] dark:bg-[#251b16] text-[#5c3826] dark:text-amber-400 flex items-center justify-center">
                 <Percent className="h-6 w-6" />
               </div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center justify-between">
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#1c1512] border border-[#e7ded5] dark:border-[#2e231d] shadow-xs flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                <span className="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider">
                   Total Diskon Promo
                 </span>
-                <div className="text-2xl font-black text-rose-600 mt-1">
+                <div className="text-2xl font-black text-rose-700 dark:text-rose-400 mt-1 tabular-nums">
                   {formatRupiah(summary.totalDiscount)}
                 </div>
-                <div className="text-[11px] text-slate-500 mt-1">Potongan voucher & manual</div>
+                <div className="text-xs text-stone-500 dark:text-stone-400 mt-1">Potongan voucher & manual</div>
               </div>
-              <div className="h-12 w-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+              <div className="h-12 w-12 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-600 flex items-center justify-center">
                 <Award className="h-6 w-6" />
               </div>
             </div>

@@ -468,13 +468,13 @@ export default function ProductsPage() {
       </div>
 
       {/* Tabs Switcher */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="flex items-center gap-2 border-b border-[#e7ded5] dark:border-[#2e231d] pb-2">
         <button
           onClick={() => setActiveTab("products")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
             activeTab === "products"
-              ? "bg-slate-900 text-white shadow-xs"
-              : "text-slate-600 hover:bg-slate-100"
+              ? "bg-[#5c3826] text-white shadow-xs"
+              : "text-stone-600 dark:text-stone-400 hover:bg-[#ede5dc] dark:hover:bg-[#2e231d]"
           }`}
         >
           <UtensilsCrossed className="h-3.5 w-3.5" />
@@ -483,10 +483,10 @@ export default function ProductsPage() {
 
         <button
           onClick={() => setActiveTab("categories")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
             activeTab === "categories"
-              ? "bg-slate-900 text-white shadow-xs"
-              : "text-slate-600 hover:bg-slate-100"
+              ? "bg-[#5c3826] text-white shadow-xs"
+              : "text-stone-600 dark:text-stone-400 hover:bg-[#ede5dc] dark:hover:bg-[#2e231d]"
           }`}
         >
           <Layers className="h-3.5 w-3.5" />
@@ -498,13 +498,13 @@ export default function ProductsPage() {
       {activeTab === "products" && (
         <div className="space-y-4">
           {/* Filter Bar */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-xs">
+          <div className="bg-white dark:bg-[#1c1512] rounded-2xl border border-[#e7ded5] dark:border-[#2e231d] p-4 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-xs">
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="text-xs text-slate-500">Filter Kategori:</span>
+              <span className="text-xs font-bold text-stone-600 dark:text-stone-400">Filter Kategori:</span>
               <select
                 value={selectedCatFilter}
                 onChange={(e) => setSelectedCatFilter(e.target.value)}
-                className="text-xs font-semibold bg-white text-slate-900 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="text-xs font-semibold bg-white dark:bg-[#251b16] text-stone-900 dark:text-stone-100 border border-[#d8ccc0] dark:border-[#382b23] rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5c3826]"
               >
                 <option value="all">Semua Kategori</option>
                 {categories.map((c) => (
@@ -516,22 +516,22 @@ export default function ProductsPage() {
             </div>
 
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-stone-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari nama menu..."
-                className="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl bg-white dark:bg-[#251b16] text-stone-900 dark:text-stone-100 placeholder:text-stone-400 border border-[#d8ccc0] dark:border-[#382b23] focus:outline-none focus:ring-2 focus:ring-[#5c3826]"
               />
             </div>
           </div>
 
           {/* Product Table */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div className="bg-white dark:bg-[#1c1512] rounded-2xl border border-[#e7ded5] dark:border-[#2e231d] shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                <thead className="bg-[#f4eee6] dark:bg-[#251b16] text-stone-700 dark:text-stone-300 font-bold border-b border-[#e7ded5] dark:border-[#2e231d]">
                   <tr>
                     <th className="py-3 px-4">Menu & Foto</th>
                     <th className="py-3 px-3">Kategori</th>
@@ -544,51 +544,51 @@ export default function ProductsPage() {
                     <th className="py-3 px-4 text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[#f0e8df] dark:divide-[#2e231d]">
                   {filteredProducts.map((p) => {
                     const profit = p.price - p.cost;
                     const margin = p.price > 0 ? Math.round((profit / p.price) * 100) : 0;
 
                     return (
-                      <tr key={p.id} className="hover:bg-slate-50/60 transition">
+                      <tr key={p.id} className="hover:bg-[#faf8f5]/80 dark:hover:bg-[#2e231d]/50 transition">
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
                             {p.imageUrl ? (
                               <img
                                 src={p.imageUrl}
                                 alt={p.name}
-                                className="h-10 w-10 rounded-lg object-cover bg-slate-100"
+                                className="h-10 w-10 rounded-lg object-cover bg-stone-100 dark:bg-stone-800"
                               />
                             ) : (
-                              <div className="h-10 w-10 rounded-lg bg-amber-100 text-amber-700 font-bold flex items-center justify-center text-xs">
+                              <div className="h-10 w-10 rounded-lg bg-[#f3eae0] dark:bg-[#34241c] text-[#5c3826] dark:text-amber-300 font-bold flex items-center justify-center text-xs">
                                 {p.name.slice(0, 2).toUpperCase()}
                               </div>
                             )}
                             <div>
-                              <div className="font-bold text-slate-900">{p.name}</div>
-                              <div className="text-[10px] text-slate-400">Satuan: {p.unit}</div>
+                              <div className="font-bold text-sm text-stone-900 dark:text-stone-100">{p.name}</div>
+                              <div className="text-xs text-stone-500 dark:text-stone-400">Satuan: {p.unit}</div>
                             </div>
                           </div>
                         </td>
 
-                        <td className="py-3 px-3 text-slate-600 font-medium">
+                        <td className="py-3 px-3 text-stone-700 dark:text-stone-300 font-semibold">
                           {p.category?.name}
                         </td>
 
                         <td className="py-3 px-3">
-                          <div className="font-bold text-slate-900">{formatRupiah(p.price)}</div>
+                          <div className="font-black text-sm text-[#5c3826] dark:text-amber-300 tabular-nums">{formatRupiah(p.price)}</div>
                           {p.variants && p.variants.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1 max-w-[190px]">
+                            <div className="flex flex-wrap gap-1 mt-1 max-w-[200px]">
                               {p.variants
                                 .filter((v: any) => v.isActive)
                                 .map((v: any) => (
                                   <span
                                     key={v.id || `${v.packaging}-${v.size}`}
-                                    className="inline-flex items-center text-[10px] font-medium bg-amber-50 text-amber-900 border border-amber-200/80 px-1.5 py-0.5 rounded shadow-2xs"
+                                    className="inline-flex items-center text-xs font-semibold bg-[#fbf5ee] dark:bg-[#251b16] text-[#5c3826] dark:text-amber-300 border border-[#e7ded5] dark:border-[#382b23] px-2 py-0.5 rounded-md shadow-2xs tabular-nums"
                                     title={`${v.packaging} ${v.size}: Jual ${formatRupiah(v.price)} | Modal ${formatRupiah(v.cost)}`}
                                   >
                                     <span className="font-bold mr-1">{v.size}</span>
-                                    <span className="text-[9px] text-amber-700">{formatRupiah(v.price)}</span>
+                                    <span className="text-xs text-amber-700 dark:text-amber-400">{formatRupiah(v.price)}</span>
                                   </span>
                                 ))}
                             </div>
@@ -596,19 +596,19 @@ export default function ProductsPage() {
                         </td>
 
                         <td className="py-3 px-3">
-                          <div className="font-bold text-slate-900">{formatRupiah(p.cost)}</div>
+                          <div className="font-black text-sm text-stone-900 dark:text-stone-100 tabular-nums">{formatRupiah(p.cost)}</div>
                           {p.variants && p.variants.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1 max-w-[190px]">
+                            <div className="flex flex-wrap gap-1 mt-1 max-w-[200px]">
                               {p.variants
                                 .filter((v: any) => v.isActive)
                                 .map((v: any) => (
                                   <span
                                     key={v.id || `${v.packaging}-${v.size}`}
-                                    className="inline-flex items-center text-[10px] font-medium bg-emerald-50 text-emerald-900 border border-emerald-200/80 px-1.5 py-0.5 rounded shadow-2xs"
+                                    className="inline-flex items-center text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md shadow-2xs tabular-nums"
                                     title={`${v.packaging} ${v.size}: Modal ${formatRupiah(v.cost)} (Hitung: ${formatRupiah(v.calculatedHpp ?? v.cost)})`}
                                   >
                                     <span className="font-bold mr-1">{v.size}:</span>
-                                    <span className="text-[9px] text-emerald-700 font-semibold">{formatRupiah(v.cost)}</span>
+                                    <span className="text-xs text-emerald-700 dark:text-emerald-400 font-bold">{formatRupiah(v.cost)}</span>
                                   </span>
                                 ))}
                             </div>
@@ -616,22 +616,22 @@ export default function ProductsPage() {
                         </td>
 
                         <td className="py-3 px-3">
-                          <span className="font-bold text-emerald-700">
+                          <span className="font-black text-xs text-emerald-700 dark:text-emerald-400 tabular-nums">
                             {formatRupiah(profit)}
                           </span>{" "}
-                          <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded font-semibold">
+                          <span className="text-xs text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded-md font-bold tabular-nums">
                             +{margin}%
                           </span>
                         </td>
 
                         <td className="py-3 px-3">
                           <span
-                            className={`font-bold px-2 py-0.5 rounded ${
+                            className={`font-bold text-xs px-2.5 py-1 rounded-lg tabular-nums ${
                               p.stock <= 0
                                 ? "bg-rose-100 text-rose-800"
                                 : p.stock <= 10
                                 ? "bg-amber-100 text-amber-800"
-                                : "bg-slate-100 text-slate-800"
+                                : "bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200"
                             }`}
                           >
                             {p.stock} {p.unit}
@@ -649,7 +649,7 @@ export default function ProductsPage() {
 
                             if (!hasVariantRecipes) {
                               return (
-                                <span className="text-[10px] text-slate-400 italic">
+                                <span className="text-xs text-stone-400 italic">
                                   Stok Siap Jual
                                 </span>
                               );
@@ -664,17 +664,17 @@ export default function ProductsPage() {
                             const isPartial = activeVariants.length > 0 && availableVariants.length > 0 && availableVariants.length < activeVariants.length;
 
                             return (
-                              <div className="space-y-1 max-w-[190px]">
+                              <div className="space-y-1 max-w-[200px]">
                                 {isAllReady ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                                  <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
                                     ✓ Semua Varian Siap
                                   </span>
                                 ) : isPartial ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded">
+                                  <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 px-2 py-0.5 rounded-md">
                                     ⚠️ Sebagian Habis ({availableVariants.length}/{activeVariants.length})
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
+                                  <span className="inline-flex items-center gap-1 text-xs font-black text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 px-2 py-0.5 rounded-md">
                                     ⚠️ Bahan Habis
                                   </span>
                                 )}
@@ -688,10 +688,10 @@ export default function ProductsPage() {
                                     return (
                                       <span
                                         key={v.id || `${v.packaging}-${v.size}`}
-                                        className={`text-[9px] px-1 py-0.5 rounded font-medium border ${
+                                        className={`text-xs px-1.5 py-0.5 rounded-md font-semibold border tabular-nums ${
                                           isVarReady
-                                            ? "bg-slate-50 text-slate-700 border-slate-200"
-                                            : "bg-rose-50 text-rose-700 border-rose-200 font-bold"
+                                            ? "bg-[#faf8f5] dark:bg-[#251b16] text-stone-700 dark:text-stone-300 border-[#e7ded5] dark:border-[#382b23]"
+                                            : "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 font-bold"
                                         }`}
                                         title={
                                           isVarReady
@@ -711,12 +711,12 @@ export default function ProductsPage() {
 
                         <td className="py-3 px-3">
                           {p.isActive ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                              <CheckCircle2 className="h-3 w-3" /> Aktif
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg">
+                              <CheckCircle2 className="h-3.5 w-3.5" /> Aktif
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                              <XCircle className="h-3 w-3" /> Nonaktif
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-stone-500 bg-stone-100 dark:bg-stone-800 px-2.5 py-1 rounded-lg">
+                              <XCircle className="h-3.5 w-3.5" /> Nonaktif
                             </span>
                           )}
                         </td>
@@ -725,14 +725,14 @@ export default function ProductsPage() {
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => handleOpenEditProduct(p)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                              className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-[#ede5dc] dark:hover:bg-[#2e231d] cursor-pointer"
                               title="Edit Menu"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => handleDeleteProduct(p.id)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                              className="p-1.5 rounded-lg text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
                               title="Hapus Menu"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -1003,21 +1003,21 @@ export default function ProductsPage() {
                           setSelectedVariantIdx(idx);
                           setCopySourceIdx(null);
                         }}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold shrink-0 transition flex items-center gap-1.5 border cursor-pointer ${
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition flex items-center gap-1.5 border cursor-pointer ${
                           isSelected
-                            ? "bg-[#803838] text-white border-[#803838] shadow-sm"
+                            ? "bg-[#5c3826] text-white border-[#5c3826] shadow-sm"
                             : v.isActive
-                            ? "bg-white text-slate-700 border-slate-300 hover:border-amber-400 hover:bg-amber-50/50"
-                            : "bg-slate-100 text-slate-400 border-slate-200 opacity-60"
+                            ? "bg-white text-stone-700 border-stone-300 hover:border-[#5c3826] hover:bg-[#faf8f5]"
+                            : "bg-stone-100 text-stone-400 border-stone-200 opacity-60"
                         }`}
                       >
                         <span>{v.packaging === "Cup" ? "🥤" : "🍾"}</span>
                         <span>{v.packaging} {v.size}</span>
                         <span
-                          className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                          className={`text-xs px-2 py-0.5 rounded-full font-bold tabular-nums ${
                             isSelected
                               ? "bg-white/20 text-white"
-                              : "bg-slate-100 text-slate-500"
+                              : "bg-stone-100 text-stone-600"
                           }`}
                         >
                           {ingCount} bahan
@@ -1038,19 +1038,19 @@ export default function ProductsPage() {
                     .filter(({ i, v }) => i !== selectedVariantIdx && (v.ingredients || []).length > 0);
 
                   return (
-                    <div className="p-3 bg-white rounded-xl border border-slate-200/90 space-y-3">
+                    <div className="p-3.5 bg-white rounded-2xl border border-stone-200/90 space-y-3">
                       {/* Variant Sub-header & Action Buttons */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-stone-100">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-slate-900">
+                          <span className="text-xs font-black text-stone-900">
                             Resep: {currentVariant.packaging === "Cup" ? "🥤" : "🍾"} {currentVariant.packaging} {currentVariant.size}
                           </span>
                           {currentVariant.isActive ? (
-                            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
                               Aktif
                             </span>
                           ) : (
-                            <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                            <span className="text-xs font-semibold text-stone-400 bg-stone-100 px-2.5 py-0.5 rounded-full">
                               Nonaktif
                             </span>
                           )}
@@ -1067,7 +1067,7 @@ export default function ProductsPage() {
                                     handleCopyRecipe(selectedVariantIdx, Number(e.target.value));
                                   }
                                 }}
-                                className="text-[11px] font-semibold bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-2 py-1 hover:bg-amber-100 transition cursor-pointer"
+                                className="text-xs font-bold bg-[#fbf5ee] border border-[#d8ccc0] text-[#5c3826] rounded-xl px-2.5 py-1.5 hover:bg-[#f3eae0] transition cursor-pointer"
                               >
                                 <option value="">📋 Salin Resep dari Varian Lain...</option>
                                 {otherVariantsWithRecipes.map(({ v, i }) => (
@@ -1082,7 +1082,7 @@ export default function ProductsPage() {
                           <button
                             type="button"
                             onClick={() => handleAddVariantIngredient(selectedVariantIdx)}
-                            className="text-xs font-bold text-amber-900 bg-amber-200 hover:bg-amber-300 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                            className="text-xs font-bold text-stone-950 bg-amber-400 hover:bg-amber-500 px-3 py-1.5 rounded-xl transition flex items-center gap-1 cursor-pointer shadow-xs"
                           >
                             <PlusCircle className="h-3.5 w-3.5" />
                             <span>+ Bahan</span>
@@ -1092,9 +1092,9 @@ export default function ProductsPage() {
 
                       {/* Ingredient list for this variant */}
                       {(!currentVariant.ingredients || currentVariant.ingredients.length === 0) ? (
-                        <div className="p-4 rounded-xl bg-slate-50 border border-dashed border-slate-300 text-center text-xs text-slate-400 space-y-1">
+                        <div className="p-4 rounded-xl bg-stone-50 border border-dashed border-stone-300 text-center text-xs text-stone-500 space-y-1">
                           <div>Belum ada komposisi bahan baku untuk varian <strong>{currentVariant.packaging} {currentVariant.size}</strong>.</div>
-                          <div className="text-[11px] text-slate-400">
+                          <div className="text-xs text-stone-400">
                             Klik <strong>"+ Bahan"</strong> untuk menambahkan bahan (cth: susu, bubuk, cup/botol) atau gunakan fitur <strong>Salin Resep</strong>.
                           </div>
                         </div>
@@ -1107,14 +1107,14 @@ export default function ProductsPage() {
                             return (
                               <div
                                 key={ingIdx}
-                                className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition"
+                                className="flex items-center gap-2 p-2 rounded-xl bg-stone-50 border border-stone-200 hover:border-stone-300 transition"
                               >
                                 <select
                                   value={ing.rawMaterialId}
                                   onChange={(e) =>
                                     handleVariantIngredientChange(selectedVariantIdx, ingIdx, "rawMaterialId", e.target.value)
                                   }
-                                  className="flex-1 text-xs font-semibold p-1.5 rounded-lg border border-slate-300 text-slate-900 bg-white"
+                                  className="flex-1 text-xs font-semibold p-2 rounded-lg border border-stone-300 text-stone-900 bg-white"
                                 >
                                   {rawMaterials.map((r) => (
                                     <option key={r.id} value={r.id}>
@@ -1137,24 +1137,24 @@ export default function ProductsPage() {
                                         parseFloat(e.target.value) || 0
                                       )
                                     }
-                                    className="w-16 text-xs font-bold p-1.5 rounded-lg border border-slate-300 text-center text-slate-900 bg-white"
+                                    className="w-18 text-xs font-bold p-2 rounded-lg border border-stone-300 text-center text-stone-900 bg-white tabular-nums"
                                   />
-                                  <span className="text-[11px] text-slate-500 font-medium w-10 truncate" title={selectedMat?.unit || "unit"}>
+                                  <span className="text-xs text-stone-600 font-semibold w-12 truncate" title={selectedMat?.unit || "unit"}>
                                     {selectedMat?.unit || "unit"}
                                   </span>
                                 </div>
 
-                                <div className="text-[10px] text-slate-500 font-mono w-16 text-right truncate" title={`Biaya bahan: ${formatRupiah(itemCost)}`}>
+                                <div className="text-xs text-stone-700 font-mono font-bold w-20 text-right truncate tabular-nums" title={`Biaya bahan: ${formatRupiah(itemCost)}`}>
                                   {formatRupiah(itemCost)}
                                 </div>
 
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveVariantIngredient(selectedVariantIdx, ingIdx)}
-                                  className="p-1 text-slate-400 hover:text-rose-600 rounded-lg transition cursor-pointer"
+                                  className="p-1.5 text-stone-400 hover:text-rose-600 rounded-lg transition cursor-pointer"
                                   title="Hapus baris bahan"
                                 >
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <Trash2 className="h-4 w-4" />
                                 </button>
                               </div>
                             );
@@ -1163,17 +1163,17 @@ export default function ProductsPage() {
                       )}
 
                       {/* Variant HPP Summary & Apply Button */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs border-t border-slate-200">
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 text-xs border-t border-stone-200">
                         <div className="flex items-center gap-2">
-                          <span className="text-slate-600">
-                            HPP Terhitung Varian:{" "}
-                            <strong className="text-slate-900 font-black">{formatRupiah(currentHpp)}</strong>
+                          <span className="text-stone-600">
+                            HPP Terhitung:{" "}
+                            <strong className="text-stone-900 font-black tabular-nums">{formatRupiah(currentHpp)}</strong>
                           </span>
-                          <span className="text-[11px] text-slate-400">
-                            (Modal Disimpan: <strong>{formatRupiah(currentVariant.cost)}</strong>)
+                          <span className="text-xs text-stone-500">
+                            (Modal: <strong className="tabular-nums">{formatRupiah(currentVariant.cost)}</strong>)
                           </span>
                           {isCostSynced && currentHpp > 0 && (
-                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
+                            <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
                               ✓ Sinkron
                             </span>
                           )}
@@ -1182,9 +1182,9 @@ export default function ProductsPage() {
                         <button
                           type="button"
                           onClick={() => handleApplyHppToVariant(selectedVariantIdx)}
-                          className="text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1"
+                          className="text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 shadow-2xs"
                         >
-                          <span>Terapkan ke Modal Varian Ini</span>
+                          <span>Terapkan ke Modal Varian</span>
                         </button>
                       </div>
                     </div>

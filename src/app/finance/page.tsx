@@ -689,23 +689,23 @@ export default function FinancePage() {
 
                       return (
                         <tr key={r.id} className="hover:bg-slate-800/40 transition group">
-                          <td className="py-3 px-4 text-center text-xs font-mono text-slate-400">
+                          <td className="py-3 px-4 text-center text-xs font-bold font-mono text-slate-400 tabular-nums">
                             {r.seqNo ?? index + 1}
                           </td>
                           {selectedAccount === "all" && (
                             <td className="py-3 px-3 text-center whitespace-nowrap">
                               {r.account === "CASH" ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                                   CASH
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
                                   QRIS
                                 </span>
                               )}
                             </td>
                           )}
-                          <td className="py-3 px-4 whitespace-nowrap text-xs text-slate-300">
+                          <td className="py-3 px-4 whitespace-nowrap text-xs text-slate-300 tabular-nums">
                             {new Date(r.date).toLocaleDateString("id-ID", {
                               day: "numeric",
                               month: "numeric",
@@ -718,17 +718,17 @@ export default function FinancePage() {
                             </span>
                           </td>
                           <td className="py-3 px-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border ${cat.bg} ${cat.text} ${cat.border}`}>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold border ${cat.bg} ${cat.text} ${cat.border}`}>
                               {cat.label}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right whitespace-nowrap font-mono text-emerald-400 font-semibold">
+                          <td className="py-3 px-4 text-right whitespace-nowrap font-mono tabular-nums text-emerald-400 font-bold">
                             {isMasuk ? formatRupiah(r.amount) : "-"}
                           </td>
-                          <td className="py-3 px-4 text-right whitespace-nowrap font-mono text-rose-400 font-semibold">
+                          <td className="py-3 px-4 text-right whitespace-nowrap font-mono tabular-nums text-rose-400 font-bold">
                             {!isMasuk ? formatRupiah(r.amount) : "-"}
                           </td>
-                          <td className="py-3 px-4 text-right whitespace-nowrap font-mono font-bold text-slate-100 bg-slate-950/30">
+                          <td className="py-3 px-4 text-right whitespace-nowrap font-mono tabular-nums font-black text-slate-100 bg-slate-950/30">
                             {formatRupiah(r.balance)}
                           </td>
                           <td className="py-3 px-4 text-xs text-slate-300">
