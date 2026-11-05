@@ -460,24 +460,30 @@ async function main() {
     }
 
     // Update ingredients including packaging
-    await prisma.productIngredient.deleteMany({
+    const variants = await prisma.productVariant.findMany({
       where: { productId: prod.id },
     });
 
-    for (const ing of item.ingredients) {
-      const rawId = rawMap.get(ing.rawName);
-      if (!rawId) {
-        console.warn(`Raw material "${ing.rawName}" not found!`);
-        continue;
-      }
-
-      await prisma.productIngredient.create({
-        data: {
-          productId: prod.id,
-          rawMaterialId: rawId,
-          amount: ing.amount,
-        },
+    for (const v of variants) {
+      await prisma.productIngredient.deleteMany({
+        where: { variantId: v.id },
       });
+
+      for (const ing of item.ingredients) {
+        const rawId = rawMap.get(ing.rawName);
+        if (!rawId) {
+          console.warn(`Raw material "${ing.rawName}" not found!`);
+          continue;
+        }
+
+        await prisma.productIngredient.create({
+          data: {
+            variantId: v.id,
+            rawMaterialId: rawId,
+            amount: ing.amount,
+          },
+        });
+      }
     }
   }
 

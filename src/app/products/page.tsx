@@ -19,6 +19,11 @@ import {
   Loader2,
 } from "lucide-react";
 
+interface VariantIngredientItem {
+  rawMaterialId: string;
+  amount: number;
+}
+
 interface VariantFormItem {
   id?: string;
   packaging: string; // "Cup" | "Botol"
@@ -27,13 +32,14 @@ interface VariantFormItem {
   cost: number;
   stock: number;
   isActive: boolean;
+  ingredients: VariantIngredientItem[];
 }
 
 const DEFAULT_VARIANTS_TEMPLATE: VariantFormItem[] = [
-  { packaging: "Cup", size: "Reguler", price: 13000, cost: 6000, stock: 50, isActive: true },
-  { packaging: "Cup", size: "Large", price: 16000, cost: 8000, stock: 50, isActive: true },
-  { packaging: "Botol", size: "250 ML", price: 15000, cost: 7000, stock: 25, isActive: true },
-  { packaging: "Botol", size: "1.000 ML", price: 55000, cost: 25000, stock: 10, isActive: true },
+  { packaging: "Cup", size: "Reguler", price: 13000, cost: 6000, stock: 50, isActive: true, ingredients: [] },
+  { packaging: "Cup", size: "Large", price: 16000, cost: 8000, stock: 50, isActive: true, ingredients: [] },
+  { packaging: "Botol", size: "250 ML", price: 15000, cost: 7000, stock: 25, isActive: true, ingredients: [] },
+  { packaging: "Botol", size: "1.000 ML", price: 55000, cost: 25000, stock: 10, isActive: true, ingredients: [] },
 ];
 
 export default function ProductsPage() {
@@ -46,8 +52,11 @@ export default function ProductsPage() {
 
   // Raw Materials for Recipe
   const [rawMaterials, setRawMaterials] = useState<any[]>([]);
-  const [prodIngredients, setProdIngredients] = useState<{ rawMaterialId: string; amount: number }[]>([]);
   const [autoCalcCost, setAutoCalcCost] = useState(false);
+
+  // Active Variant Tab Switcher in Recipe Editor
+  const [selectedVariantIdx, setSelectedVariantIdx] = useState<number>(0);
+  const [copySourceIdx, setCopySourceIdx] = useState<number | null>(null);
 
   // Product Modal State
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -132,34 +141,87 @@ export default function ProductsPage() {
     }
   };
 
-  // Recipe handlers
-  const handleAddIngredient = () => {
+  // Per-Variant Recipe Handlers
+  const handleAddVariantIngredient = (variantIdx: number) => {
     if (rawMaterials.length === 0) return;
-    setProdIngredients((prev) => [
-      ...prev,
-      { rawMaterialId: rawMaterials[0].id, amount: 1 },
-    ]);
-  };
-
-  const handleRemoveIngredient = (index: number) => {
-    setProdIngredients((prev) => prev.filter((_, idx) => idx !== index));
-  };
-
-  const handleIngredientChange = (
-    index: number,
-    field: "rawMaterialId" | "amount",
-    value: any
-  ) => {
-    setProdIngredients((prev) =>
-      prev.map((item, idx) => (idx === index ? { ...item, [field]: value } : item))
+    setProdVariants((prev) =>
+      prev.map((v, idx) => {
+        if (idx !== variantIdx) return v;
+        const currentIngs = v.ingredients || [];
+        return {
+          ...v,
+          ingredients: [
+            ...currentIngs,
+            { rawMaterialId: rawMaterials[0].id, amount: 1 },
+          ],
+        };
+      })
     );
   };
 
-  const calculatedHpp = prodIngredients.reduce((sum, ing) => {
-    const raw = rawMaterials.find((r) => r.id === ing.rawMaterialId);
-    if (!raw) return sum;
-    return sum + (Number(ing.amount) || 0) * (raw.costPerUnit || 0);
-  }, 0);
+  const handleRemoveVariantIngredient = (variantIdx: number, ingIdx: number) => {
+    setProdVariants((prev) =>
+      prev.map((v, idx) => {
+        if (idx !== variantIdx) return v;
+        return {
+          ...v,
+          ingredients: (v.ingredients || []).filter((_, i) => i !== ingIdx),
+        };
+      })
+    );
+  };
+
+  const handleVariantIngredientChange = (
+    variantIdx: number,
+    ingIdx: number,
+    field: "rawMaterialId" | "amount",
+    value: any
+  ) => {
+    setProdVariants((prev) =>
+      prev.map((v, idx) => {
+        if (idx !== variantIdx) return v;
+        return {
+          ...v,
+          ingredients: (v.ingredients || []).map((ing, i) =>
+            i === ingIdx ? { ...ing, [field]: value } : ing
+          ),
+        };
+      })
+    );
+  };
+
+  const handleCopyRecipe = (targetIdx: number, sourceIdx: number) => {
+    const source = prodVariants[sourceIdx];
+    if (!source || !source.ingredients || source.ingredients.length === 0) {
+      alert("Varian sumber belum memiliki resep untuk disalin.");
+      return;
+    }
+    const cloned = JSON.parse(JSON.stringify(source.ingredients));
+    setProdVariants((prev) =>
+      prev.map((v, idx) => (idx === targetIdx ? { ...v, ingredients: cloned } : v))
+    );
+    setCopySourceIdx(null);
+  };
+
+  const calculateVariantHpp = (variant?: VariantFormItem) => {
+    if (!variant || !variant.ingredients) return 0;
+    return variant.ingredients.reduce((sum, ing) => {
+      const raw = rawMaterials.find((r) => r.id === ing.rawMaterialId);
+      if (!raw) return sum;
+      return sum + (Number(ing.amount) || 0) * (raw.costPerUnit || 0);
+    }, 0);
+  };
+
+  const handleApplyHppToVariant = (variantIdx: number) => {
+    const v = prodVariants[variantIdx];
+    if (!v) return;
+    const hpp = calculateVariantHpp(v);
+    const rounded = Math.round(hpp * 100) / 100;
+    updateVariant(variantIdx, "cost", rounded);
+    if (variantIdx === 0) {
+      setProdCost(rounded);
+    }
+  };
 
   // Product Form Open
   const handleOpenNewProduct = () => {
@@ -172,8 +234,11 @@ export default function ProductsPage() {
     setProdUnit("cup");
     setProdImageUrl("");
     setProdIsActive(true);
-    setProdVariants(DEFAULT_VARIANTS_TEMPLATE);
-    setProdIngredients([]);
+    setProdVariants(
+      DEFAULT_VARIANTS_TEMPLATE.map((v) => ({ ...v, ingredients: [] }))
+    );
+    setSelectedVariantIdx(0);
+    setCopySourceIdx(null);
     setIsProductModalOpen(true);
   };
 
@@ -187,38 +252,33 @@ export default function ProductsPage() {
     setProdUnit(p.unit);
     setProdImageUrl(p.imageUrl || "");
     setProdIsActive(p.isActive);
+    setSelectedVariantIdx(0);
+    setCopySourceIdx(null);
 
     if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
       setProdVariants(
         p.variants.map((v: any) => ({
           id: v.id,
-          packaging: v.packaging,
+          packaging: v.packaging || "Cup",
           size: v.size,
           price: v.price,
           cost: v.cost,
           stock: v.stock,
           isActive: v.isActive,
+          ingredients: Array.isArray(v.ingredients)
+            ? v.ingredients.map((ing: any) => ({
+                rawMaterialId: ing.rawMaterialId,
+                amount: Number(ing.amount) || 0,
+              }))
+            : [],
         }))
       );
     } else {
-      setProdVariants([
-        { packaging: "Cup", size: "Reguler", price: p.price, cost: p.cost, stock: p.stock, isActive: true },
-        { packaging: "Cup", size: "Large", price: p.price + 3000, cost: Math.round((p.cost || 6000) * 1.3), stock: p.stock, isActive: true },
-        { packaging: "Botol", size: "250 ML", price: p.price + 2000, cost: Math.round((p.cost || 6000) * 1.2), stock: 25, isActive: true },
-        { packaging: "Botol", size: "1.000 ML", price: 55000, cost: 25000, stock: 10, isActive: true },
-      ]);
+      setProdVariants(
+        DEFAULT_VARIANTS_TEMPLATE.map((v) => ({ ...v, ingredients: [] }))
+      );
     }
 
-    if (p.ingredients && Array.isArray(p.ingredients)) {
-      setProdIngredients(
-        p.ingredients.map((i: any) => ({
-          rawMaterialId: i.rawMaterialId,
-          amount: i.amount,
-        }))
-      );
-    } else {
-      setProdIngredients([]);
-    }
     setIsProductModalOpen(true);
   };
 
@@ -262,8 +322,18 @@ export default function ProductsPage() {
         unit: prodUnit,
         imageUrl: prodImageUrl,
         isActive: prodIsActive,
-        ingredients: prodIngredients.filter((i) => i.rawMaterialId && i.amount > 0),
-        variants: prodVariants,
+        variants: prodVariants.map((v) => ({
+          id: v.id,
+          packaging: v.packaging,
+          size: v.size,
+          price: v.price,
+          cost: v.cost,
+          stock: v.stock,
+          isActive: v.isActive,
+          ingredients: (v.ingredients || []).filter(
+            (ing) => ing.rawMaterialId && Number(ing.amount) > 0
+          ),
+        })),
       };
 
       const res = await fetch(url, {
@@ -525,8 +595,24 @@ export default function ProductsPage() {
                           )}
                         </td>
 
-                        <td className="py-3 px-3 text-slate-500 font-medium">
-                          {formatRupiah(p.cost)}
+                        <td className="py-3 px-3">
+                          <div className="font-bold text-slate-900">{formatRupiah(p.cost)}</div>
+                          {p.variants && p.variants.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1 max-w-[190px]">
+                              {p.variants
+                                .filter((v: any) => v.isActive)
+                                .map((v: any) => (
+                                  <span
+                                    key={v.id || `${v.packaging}-${v.size}`}
+                                    className="inline-flex items-center text-[10px] font-medium bg-emerald-50 text-emerald-900 border border-emerald-200/80 px-1.5 py-0.5 rounded shadow-2xs"
+                                    title={`${v.packaging} ${v.size}: Modal ${formatRupiah(v.cost)} (Hitung: ${formatRupiah(v.calculatedHpp ?? v.cost)})`}
+                                  >
+                                    <span className="font-bold mr-1">{v.size}:</span>
+                                    <span className="text-[9px] text-emerald-700 font-semibold">{formatRupiah(v.cost)}</span>
+                                  </span>
+                                ))}
+                            </div>
+                          )}
                         </td>
 
                         <td className="py-3 px-3">
@@ -552,38 +638,75 @@ export default function ProductsPage() {
                           </span>
                         </td>
 
-                        {/* Status Bahan Baku / Recipe */}
+                        {/* Status Bahan Baku & Kesiapan per Varian */}
                         <td className="py-3 px-3">
-                          {p.ingredients && p.ingredients.length > 0 ? (
-                            p.isAvailableByIngredients === false ? (
-                              <div className="space-y-0.5">
-                                <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
-                                  ⚠️ Bahan Habis
+                          {(() => {
+                            const variants = p.variants || [];
+                            const activeVariants = variants.filter((v: any) => v.isActive);
+                            const hasVariantRecipes = activeVariants.some(
+                              (v: any) => v.ingredients && v.ingredients.length > 0
+                            );
+
+                            if (!hasVariantRecipes) {
+                              return (
+                                <span className="text-[10px] text-slate-400 italic">
+                                  Stok Siap Jual
                                 </span>
-                                <div
-                                  className="text-[10px] text-rose-600 font-semibold truncate max-w-[130px]"
-                                  title={`Bahan kurang: ${(p.missingIngredients || [])
-                                    .map((m: any) => `${m.name} (kurang ${m.shortage} ${m.unit})`)
-                                    .join(", ")}`}
-                                >
-                                  {(p.missingIngredients || []).map((m: any) => m.name).join(", ")}
+                              );
+                            }
+
+                            const availableVariants = activeVariants.filter(
+                              (v: any) =>
+                                v.isAvailableByIngredients !== false &&
+                                (v.maxProducible === null || v.maxProducible === undefined || v.maxProducible > 0)
+                            );
+                            const isAllReady = activeVariants.length > 0 && availableVariants.length === activeVariants.length;
+                            const isPartial = activeVariants.length > 0 && availableVariants.length > 0 && availableVariants.length < activeVariants.length;
+
+                            return (
+                              <div className="space-y-1 max-w-[190px]">
+                                {isAllReady ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                                    ✓ Semua Varian Siap
+                                  </span>
+                                ) : isPartial ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded">
+                                    ⚠️ Sebagian Habis ({availableVariants.length}/{activeVariants.length})
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
+                                    ⚠️ Bahan Habis
+                                  </span>
+                                )}
+
+                                {/* Per-variant readiness badges */}
+                                <div className="flex flex-wrap gap-1 mt-0.5">
+                                  {activeVariants.map((v: any) => {
+                                    const isVarReady =
+                                      v.isAvailableByIngredients !== false &&
+                                      (v.maxProducible === null || v.maxProducible === undefined || v.maxProducible > 0);
+                                    return (
+                                      <span
+                                        key={v.id || `${v.packaging}-${v.size}`}
+                                        className={`text-[9px] px-1 py-0.5 rounded font-medium border ${
+                                          isVarReady
+                                            ? "bg-slate-50 text-slate-700 border-slate-200"
+                                            : "bg-rose-50 text-rose-700 border-rose-200 font-bold"
+                                        }`}
+                                        title={
+                                          isVarReady
+                                            ? `${v.size}: Siap s.d. ${v.maxProducible ?? "∞"} porsi`
+                                            : `${v.size}: Bahan kurang (${(v.missingIngredients || []).join(", ")})`
+                                        }
+                                      >
+                                        {v.size}: {isVarReady ? `${v.maxProducible ?? "∞"}` : "Habis"}
+                                      </span>
+                                    );
+                                  })}
                                 </div>
                               </div>
-                            ) : (
-                              <div className="space-y-0.5">
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                                  ✓ Bahan Siap
-                                </span>
-                                <div className="text-[10px] text-slate-500 font-medium">
-                                  Maks: <strong>{p.maxProducible ?? "∞"}</strong> {p.unit}
-                                </div>
-                              </div>
-                            )
-                          ) : (
-                            <span className="text-[10px] text-slate-400 italic">
-                              Stok Siap Jual
-                            </span>
-                          )}
+                            );
+                          })()}
                         </td>
 
                         <td className="py-3 px-3">
@@ -852,103 +975,221 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              {/* Komposisi & Resep Bahan Baku (BOM) */}
+              {/* Komposisi & Resep Bahan Baku per Varian (Strict Variant BOM) */}
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                   <div>
                     <label className="text-xs font-bold text-slate-800 block">
-                      Komposisi / Resep Bahan Baku per 1 {prodUnit}
+                      Komposisi & Resep Bahan Baku per Varian (BOM)
                     </label>
                     <p className="text-[11px] text-slate-500">
-                      Jika bahan habis di gudang, produk otomatis dinonaktifkan di kasir POS.
+                      Setiap varian ukuran & kemasan memiliki resep bahan baku serta wadah kemasan fisiknya masing-masing.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleAddIngredient}
-                    className="text-xs font-bold text-amber-800 bg-amber-200 hover:bg-amber-300 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
-                  >
-                    <PlusCircle className="h-3.5 w-3.5" />
-                    <span>+ Bahan</span>
-                  </button>
                 </div>
 
-                {prodIngredients.length === 0 ? (
-                  <div className="p-3 rounded-xl bg-white border border-dashed border-slate-300 text-center text-xs text-slate-400">
-                    Belum ada resep bahan baku. Klik <strong>"+ Bahan"</strong> untuk mengaitkan stok bahan baku (cth: 18g Biji Kopi, 150ml Susu, 1 pcs Cup).
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {prodIngredients.map((ing, idx) => {
-                      const selectedMat = rawMaterials.find((r) => r.id === ing.rawMaterialId);
-                      return (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-2 p-2 rounded-xl bg-white border border-slate-200"
-                        >
-                          <select
-                            value={ing.rawMaterialId}
-                            onChange={(e) =>
-                              handleIngredientChange(idx, "rawMaterialId", e.target.value)
-                            }
-                            className="flex-1 text-xs font-semibold p-1.5 rounded-lg border border-slate-300 text-slate-900 bg-white"
-                          >
-                            {rawMaterials.map((r) => (
-                              <option key={r.id} value={r.id}>
-                                {r.name} (Sisa: {r.stock} {r.unit})
-                              </option>
-                            ))}
-                          </select>
+                {/* Interactive Variant Tab Switcher */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                  {prodVariants.map((v, idx) => {
+                    const isSelected = selectedVariantIdx === idx;
+                    const vHpp = calculateVariantHpp(v);
+                    const ingCount = (v.ingredients || []).length;
 
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              step="any"
-                              min="0.01"
-                              value={ing.amount}
-                              onChange={(e) =>
-                                handleIngredientChange(
-                                  idx,
-                                  "amount",
-                                  parseFloat(e.target.value) || 0
-                                )
-                              }
-                              className="w-16 text-xs font-bold p-1.5 rounded-lg border border-slate-300 text-center text-slate-900"
-                            />
-                            <span className="text-[11px] text-slate-500 font-medium w-9 truncate">
-                              {selectedMat?.unit || "unit"}
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setSelectedVariantIdx(idx);
+                          setCopySourceIdx(null);
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold shrink-0 transition flex items-center gap-1.5 border cursor-pointer ${
+                          isSelected
+                            ? "bg-[#803838] text-white border-[#803838] shadow-sm"
+                            : v.isActive
+                            ? "bg-white text-slate-700 border-slate-300 hover:border-amber-400 hover:bg-amber-50/50"
+                            : "bg-slate-100 text-slate-400 border-slate-200 opacity-60"
+                        }`}
+                      >
+                        <span>{v.packaging === "Cup" ? "🥤" : "🍾"}</span>
+                        <span>{v.packaging} {v.size}</span>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                            isSelected
+                              ? "bg-white/20 text-white"
+                              : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          {ingCount} bahan
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Selected Variant Recipe Content */}
+                {(() => {
+                  const currentVariant = prodVariants[selectedVariantIdx] || prodVariants[0];
+                  if (!currentVariant) return null;
+                  const currentHpp = calculateVariantHpp(currentVariant);
+                  const isCostSynced = currentVariant.cost === Math.round(currentHpp * 100) / 100;
+                  const otherVariantsWithRecipes = prodVariants
+                    .map((v, i) => ({ v, i }))
+                    .filter(({ i, v }) => i !== selectedVariantIdx && (v.ingredients || []).length > 0);
+
+                  return (
+                    <div className="p-3 bg-white rounded-xl border border-slate-200/90 space-y-3">
+                      {/* Variant Sub-header & Action Buttons */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-slate-900">
+                            Resep: {currentVariant.packaging === "Cup" ? "🥤" : "🍾"} {currentVariant.packaging} {currentVariant.size}
+                          </span>
+                          {currentVariant.isActive ? (
+                            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                              Aktif
                             </span>
-                          </div>
+                          ) : (
+                            <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                              Nonaktif
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {/* Salin Resep dari Varian Lain Helper */}
+                          {otherVariantsWithRecipes.length > 0 && (
+                            <div className="flex items-center gap-1">
+                              <select
+                                value={copySourceIdx ?? ""}
+                                onChange={(e) => {
+                                  if (e.target.value !== "") {
+                                    handleCopyRecipe(selectedVariantIdx, Number(e.target.value));
+                                  }
+                                }}
+                                className="text-[11px] font-semibold bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-2 py-1 hover:bg-amber-100 transition cursor-pointer"
+                              >
+                                <option value="">📋 Salin Resep dari Varian Lain...</option>
+                                {otherVariantsWithRecipes.map(({ v, i }) => (
+                                  <option key={i} value={i}>
+                                    Salin dari {v.packaging} {v.size} ({v.ingredients.length} bahan)
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
 
                           <button
                             type="button"
-                            onClick={() => handleRemoveIngredient(idx)}
-                            className="p-1 text-slate-400 hover:text-rose-600 rounded-lg transition cursor-pointer"
-                            title="Hapus baris bahan"
+                            onClick={() => handleAddVariantIngredient(selectedVariantIdx)}
+                            className="text-xs font-bold text-amber-900 bg-amber-200 hover:bg-amber-300 px-2.5 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <PlusCircle className="h-3.5 w-3.5" />
+                            <span>+ Bahan</span>
                           </button>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      </div>
 
-                {prodIngredients.length > 0 && (
-                  <div className="flex items-center justify-between pt-1 text-xs border-t border-slate-200">
-                    <span className="text-slate-600">
-                      HPP Bahan Baku:{" "}
-                      <strong className="text-slate-900">{formatRupiah(calculatedHpp)}</strong>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setProdCost(Math.round(calculatedHpp * 100) / 100)}
-                      className="text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg transition cursor-pointer"
-                    >
-                      Terapkan ke Modal/HPP
-                    </button>
-                  </div>
-                )}
+                      {/* Ingredient list for this variant */}
+                      {(!currentVariant.ingredients || currentVariant.ingredients.length === 0) ? (
+                        <div className="p-4 rounded-xl bg-slate-50 border border-dashed border-slate-300 text-center text-xs text-slate-400 space-y-1">
+                          <div>Belum ada komposisi bahan baku untuk varian <strong>{currentVariant.packaging} {currentVariant.size}</strong>.</div>
+                          <div className="text-[11px] text-slate-400">
+                            Klik <strong>"+ Bahan"</strong> untuk menambahkan bahan (cth: susu, bubuk, cup/botol) atau gunakan fitur <strong>Salin Resep</strong>.
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                          {currentVariant.ingredients.map((ing, ingIdx) => {
+                            const selectedMat = rawMaterials.find((r) => r.id === ing.rawMaterialId);
+                            const itemCost = (Number(ing.amount) || 0) * (selectedMat?.costPerUnit || 0);
+
+                            return (
+                              <div
+                                key={ingIdx}
+                                className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition"
+                              >
+                                <select
+                                  value={ing.rawMaterialId}
+                                  onChange={(e) =>
+                                    handleVariantIngredientChange(selectedVariantIdx, ingIdx, "rawMaterialId", e.target.value)
+                                  }
+                                  className="flex-1 text-xs font-semibold p-1.5 rounded-lg border border-slate-300 text-slate-900 bg-white"
+                                >
+                                  {rawMaterials.map((r) => (
+                                    <option key={r.id} value={r.id}>
+                                      {r.name} (Sisa: {r.stock} {r.unit} | Rp {formatRupiah(r.costPerUnit || 0)}/{r.unit})
+                                    </option>
+                                  ))}
+                                </select>
+
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    min="0.01"
+                                    value={ing.amount}
+                                    onChange={(e) =>
+                                      handleVariantIngredientChange(
+                                        selectedVariantIdx,
+                                        ingIdx,
+                                        "amount",
+                                        parseFloat(e.target.value) || 0
+                                      )
+                                    }
+                                    className="w-16 text-xs font-bold p-1.5 rounded-lg border border-slate-300 text-center text-slate-900 bg-white"
+                                  />
+                                  <span className="text-[11px] text-slate-500 font-medium w-10 truncate" title={selectedMat?.unit || "unit"}>
+                                    {selectedMat?.unit || "unit"}
+                                  </span>
+                                </div>
+
+                                <div className="text-[10px] text-slate-500 font-mono w-16 text-right truncate" title={`Biaya bahan: ${formatRupiah(itemCost)}`}>
+                                  {formatRupiah(itemCost)}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveVariantIngredient(selectedVariantIdx, ingIdx)}
+                                  className="p-1 text-slate-400 hover:text-rose-600 rounded-lg transition cursor-pointer"
+                                  title="Hapus baris bahan"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Variant HPP Summary & Apply Button */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs border-t border-slate-200">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-600">
+                            HPP Terhitung Varian:{" "}
+                            <strong className="text-slate-900 font-black">{formatRupiah(currentHpp)}</strong>
+                          </span>
+                          <span className="text-[11px] text-slate-400">
+                            (Modal Disimpan: <strong>{formatRupiah(currentVariant.cost)}</strong>)
+                          </span>
+                          {isCostSynced && currentHpp > 0 && (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
+                              ✓ Sinkron
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleApplyHppToVariant(selectedVariantIdx)}
+                          className="text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1"
+                        >
+                          <span>Terapkan ke Modal Varian Ini</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="grid grid-cols-2 gap-2">

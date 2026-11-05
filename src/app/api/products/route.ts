@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
       where.isActive = true;
     }
     if (search?.trim()) {
-      where.name = { contains: search.trim() };
+      where.name = { contains: search.trim(), mode: "insensitive" };
     }
 
     const products = await prisma.product.findMany({
@@ -27,49 +27,83 @@ export async function GET(req: NextRequest) {
         category: {
           select: { id: true, name: true },
         },
-        ingredients: {
-          include: {
-            rawMaterial: true,
-          },
-        },
         variants: {
           orderBy: [{ packaging: "asc" }, { size: "asc" }],
+          include: {
+            ingredients: {
+              include: {
+                rawMaterial: true,
+              },
+            },
+          },
         },
       },
     });
 
-    // Hitung status ketersediaan bahan baku untuk setiap produk
+    // Hitung status ketersediaan bahan baku & HPP akurat per varian dan per produk
     const enriched = products.map((p) => {
-      let isAvailableByIngredients = true;
-      const missingIngredients: string[] = [];
-      let maxProducible = p.stock;
+      let productAvailable = false;
+      const productMissingSet = new Set<string>();
+      let productMaxProducible = 0;
 
-      if (p.ingredients && p.ingredients.length > 0) {
-        const producibleLimits: number[] = [];
+      const enrichedVariants = p.variants.map((v) => {
+        let isAvailableByIngredients = true;
+        const missingIngredients: string[] = [];
+        let maxProducible = v.stock;
+        let calculatedHpp = 0;
 
-        p.ingredients.forEach((ing) => {
-          const raw = ing.rawMaterial;
-          if (!raw || raw.stock < ing.amount) {
-            isAvailableByIngredients = false;
-            missingIngredients.push(
-              `${raw?.name || "Bahan"} (Sisa: ${raw?.stock || 0} ${raw?.unit || ""})`
-            );
+        if (v.ingredients && v.ingredients.length > 0) {
+          const producibleLimits: number[] = [];
+
+          v.ingredients.forEach((ing) => {
+            const raw = ing.rawMaterial;
+            const costPerUnit = raw?.costPerUnit ?? 0;
+            calculatedHpp += ing.amount * costPerUnit;
+
+            if (!raw || raw.stock < ing.amount) {
+              isAvailableByIngredients = false;
+              const missingDesc = `${raw?.name || "Bahan"} (Sisa: ${raw?.stock || 0} ${raw?.unit || ""})`;
+              missingIngredients.push(missingDesc);
+              productMissingSet.add(missingDesc);
+            }
+            if (raw && ing.amount > 0) {
+              producibleLimits.push(Math.floor(raw.stock / ing.amount));
+            }
+          });
+
+          if (producibleLimits.length > 0) {
+            maxProducible = Math.min(...producibleLimits);
           }
-          if (raw && ing.amount > 0) {
-            producibleLimits.push(Math.floor(raw.stock / ing.amount));
-          }
-        });
-
-        if (producibleLimits.length > 0) {
-          maxProducible = Math.min(...producibleLimits);
         }
+
+        if (v.isActive && isAvailableByIngredients) {
+          productAvailable = true;
+        }
+
+        if (v.isActive && maxProducible > productMaxProducible) {
+          productMaxProducible = maxProducible;
+        }
+
+        return {
+          ...v,
+          calculatedHpp: Math.round(calculatedHpp * 100) / 100,
+          isAvailableByIngredients,
+          missingIngredients,
+          maxProducible,
+        };
+      });
+
+      if (p.variants.length === 0) {
+        productAvailable = p.stock > 0;
+        productMaxProducible = p.stock;
       }
 
       return {
         ...p,
-        isAvailableByIngredients,
-        missingIngredients,
-        maxProducible,
+        variants: enrichedVariants,
+        isAvailableByIngredients: productAvailable,
+        missingIngredients: Array.from(productMissingSet),
+        maxProducible: productMaxProducible,
       };
     });
 
@@ -118,7 +152,7 @@ export async function POST(req: NextRequest) {
     if (Array.isArray(variants) && variants.length > 0) {
       for (const v of variants) {
         if (v.size && v.price !== undefined) {
-          await prisma.productVariant.create({
+          const createdVariant = await prisma.productVariant.create({
             data: {
               productId: product.id,
               packaging: v.packaging || "Cup",
@@ -129,30 +163,53 @@ export async function POST(req: NextRequest) {
               isActive: v.isActive !== undefined ? Boolean(v.isActive) : true,
             },
           });
+
+          // Simpan resep varian jika dikirim per-varian
+          if (Array.isArray(v.ingredients)) {
+            for (const ing of v.ingredients) {
+              if (ing.rawMaterialId && Number(ing.amount) > 0) {
+                await prisma.productIngredient.create({
+                  data: {
+                    variantId: createdVariant.id,
+                    rawMaterialId: ing.rawMaterialId,
+                    amount: Number(ing.amount),
+                  },
+                });
+              }
+            }
+          }
         }
       }
     } else {
-      await prisma.productVariant.createMany({
-        data: [
-          { productId: product.id, packaging: "Cup", size: "Reguler", price: parsedPrice, cost: parsedCost, stock: parsedStock, isActive: true },
-          { productId: product.id, packaging: "Cup", size: "Large", price: parsedPrice + 3000, cost: Math.round(parsedCost * 1.3), stock: parsedStock, isActive: true },
-          { productId: product.id, packaging: "Botol", size: "250 ML", price: parsedPrice + 2000, cost: Math.round(parsedCost * 1.2), stock: 25, isActive: true },
-          { productId: product.id, packaging: "Botol", size: "1.000 ML", price: 55000, cost: 25000, stock: 10, isActive: true },
-        ],
-      });
-    }
+      // Buat default 4 varian
+      const defaultVariantsData = [
+        { packaging: "Cup", size: "Reguler", price: parsedPrice, cost: parsedCost, stock: parsedStock, isActive: true },
+        { packaging: "Cup", size: "Large", price: parsedPrice + 3000, cost: Math.round(parsedCost * 1.3), stock: parsedStock, isActive: true },
+        { packaging: "Botol", size: "250 ML", price: parsedPrice + 2000, cost: Math.round(parsedCost * 1.2), stock: 25, isActive: true },
+        { packaging: "Botol", size: "1.000 ML", price: 55000, cost: 25000, stock: 10, isActive: true },
+      ];
 
-    // Simpan resep bahan baku jika ada
-    if (Array.isArray(ingredients)) {
-      for (const ing of ingredients) {
-        if (ing.rawMaterialId && Number(ing.amount) > 0) {
-          await prisma.productIngredient.create({
-            data: {
-              productId: product.id,
-              rawMaterialId: ing.rawMaterialId,
-              amount: Number(ing.amount),
-            },
-          });
+      for (const defVar of defaultVariantsData) {
+        const created = await prisma.productVariant.create({
+          data: {
+            productId: product.id,
+            ...defVar,
+          },
+        });
+
+        // Jika ada resep bahan baku dikirim via legacy payload, pasang pada Cup Reguler
+        if (defVar.packaging === "Cup" && defVar.size === "Reguler" && Array.isArray(ingredients)) {
+          for (const ing of ingredients) {
+            if (ing.rawMaterialId && Number(ing.amount) > 0) {
+              await prisma.productIngredient.create({
+                data: {
+                  variantId: created.id,
+                  rawMaterialId: ing.rawMaterialId,
+                  amount: Number(ing.amount),
+                },
+              });
+            }
+          }
         }
       }
     }
@@ -172,7 +229,14 @@ export async function POST(req: NextRequest) {
       where: { id: product.id },
       include: {
         category: true,
-        variants: { orderBy: [{ packaging: "asc" }, { size: "asc" }] },
+        variants: {
+          orderBy: [{ packaging: "asc" }, { size: "asc" }],
+          include: {
+            ingredients: {
+              include: { rawMaterial: true },
+            },
+          },
+        },
       },
     });
 
@@ -193,7 +257,17 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "ID produk wajib disertakan" }, { status: 400 });
     }
 
-    const existing = await prisma.product.findUnique({ where: { id } });
+    const existing = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        variants: {
+          include: {
+            ingredients: true,
+          },
+        },
+      },
+    });
+
     if (!existing) {
       return NextResponse.json({ error: "Produk tidak ditemukan" }, { status: 404 });
     }
@@ -206,10 +280,9 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Harga dan stok tidak boleh bernilai negatif" }, { status: 400 });
     }
 
-    // Jika ada perubahan stok langsung
     const stockDiff = parsedStock - existing.stock;
 
-    const updated = await prisma.product.update({
+    await prisma.product.update({
       where: { id },
       data: {
         name: name?.trim() ?? existing.name,
@@ -221,47 +294,104 @@ export async function PUT(req: NextRequest) {
         imageUrl: imageUrl !== undefined ? imageUrl?.trim() || null : existing.imageUrl,
         isActive: isActive !== undefined ? Boolean(isActive) : existing.isActive,
       },
-      include: {
-        category: true,
-      },
     });
 
-    // Simpan / sinkronkan varian ukuran & kemasan jika dikirim
-    if (Array.isArray(variants)) {
-      await prisma.productVariant.deleteMany({
-        where: { productId: id },
-      });
+    // SAFE UPSERT/DIFF UNTUK PRODUCT VARIANTS (TIDAK MENGHAPUS VARIAN ATAU RESEP VARIAN)
+    if (Array.isArray(variants) && variants.length > 0) {
       for (const v of variants) {
-        if (v.size && v.price !== undefined) {
-          await prisma.productVariant.create({
+        if (!v.size) continue;
+
+        const targetPackaging = v.packaging || "Cup";
+        const targetSize = v.size;
+
+        // Cari varian eksisting berdasarkan ID atau kombinasi (packaging, size)
+        const matched = existing.variants.find(
+          (ev) => (v.id && ev.id === v.id) || (ev.packaging === targetPackaging && ev.size === targetSize)
+        );
+
+        if (matched) {
+          // Update varian yang sudah ada tanpa menghapus ID
+          await prisma.productVariant.update({
+            where: { id: matched.id },
+            data: {
+              packaging: targetPackaging,
+              size: targetSize,
+              price: v.price !== undefined ? Number(v.price) : matched.price,
+              cost: v.cost !== undefined ? Number(v.cost) : matched.cost,
+              stock: v.stock !== undefined ? Number(v.stock) : matched.stock,
+              isActive: v.isActive !== undefined ? Boolean(v.isActive) : matched.isActive,
+            },
+          });
+
+          // Jika varian membawa resep bahan baku spesifik, perbarui resep varian ini
+          if (Array.isArray(v.ingredients)) {
+            await prisma.productIngredient.deleteMany({
+              where: { variantId: matched.id },
+            });
+            for (const ing of v.ingredients) {
+              if (ing.rawMaterialId && Number(ing.amount) > 0) {
+                await prisma.productIngredient.create({
+                  data: {
+                    variantId: matched.id,
+                    rawMaterialId: ing.rawMaterialId,
+                    amount: Number(ing.amount),
+                  },
+                });
+              }
+            }
+          }
+        } else {
+          // Buat varian baru jika belum ada
+          const created = await prisma.productVariant.create({
             data: {
               productId: id,
-              packaging: v.packaging || "Cup",
-              size: v.size,
-              price: Number(v.price),
+              packaging: targetPackaging,
+              size: targetSize,
+              price: Number(v.price || parsedPrice),
               cost: Number(v.cost || 0),
               stock: Number(v.stock || parsedStock),
               isActive: v.isActive !== undefined ? Boolean(v.isActive) : true,
             },
           });
+
+          if (Array.isArray(v.ingredients)) {
+            for (const ing of v.ingredients) {
+              if (ing.rawMaterialId && Number(ing.amount) > 0) {
+                await prisma.productIngredient.create({
+                  data: {
+                    variantId: created.id,
+                    rawMaterialId: ing.rawMaterialId,
+                    amount: Number(ing.amount),
+                  },
+                });
+              }
+            }
+          }
         }
       }
     }
 
-    // Simpan resep bahan baku jika dikirim
+    // Jika ada resep dikirim di level produk (legacy modal), hubungkan aman ke Cup Reguler tanpa merusak varian lain
     if (Array.isArray(ingredients)) {
-      await prisma.productIngredient.deleteMany({
-        where: { productId: id },
-      });
-      for (const ing of ingredients) {
-        if (ing.rawMaterialId && Number(ing.amount) > 0) {
-          await prisma.productIngredient.create({
-            data: {
-              productId: id,
-              rawMaterialId: ing.rawMaterialId,
-              amount: Number(ing.amount),
-            },
-          });
+      const regulerVariant = existing.variants.find(
+        (ev) => ev.packaging === "Cup" && ev.size === "Reguler"
+      );
+
+      if (regulerVariant) {
+        await prisma.productIngredient.deleteMany({
+          where: { variantId: regulerVariant.id },
+        });
+
+        for (const ing of ingredients) {
+          if (ing.rawMaterialId && Number(ing.amount) > 0) {
+            await prisma.productIngredient.create({
+              data: {
+                variantId: regulerVariant.id,
+                rawMaterialId: ing.rawMaterialId,
+                amount: Number(ing.amount),
+              },
+            });
+          }
         }
       }
     }
@@ -280,7 +410,14 @@ export async function PUT(req: NextRequest) {
       where: { id },
       include: {
         category: true,
-        variants: { orderBy: [{ packaging: "asc" }, { size: "asc" }] },
+        variants: {
+          orderBy: [{ packaging: "asc" }, { size: "asc" }],
+          include: {
+            ingredients: {
+              include: { rawMaterial: true },
+            },
+          },
+        },
       },
     });
 

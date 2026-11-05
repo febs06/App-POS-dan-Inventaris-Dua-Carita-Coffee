@@ -38,6 +38,7 @@ interface Product {
   missingIngredients?: { name: string; required: number; available: number; shortage: number; unit: string }[];
   maxProducible?: number | null;
   ingredients?: any[];
+  variants?: any[];
 }
 
 interface CartItem {
@@ -390,7 +391,7 @@ export default function PosPage() {
         status: orderStatus,
         items: cart.map((item) => ({
           productId: item.product.id,
-          variantId: item.variant?.id || null,
+          variantId: item.variant?.id && !item.variant.id.startsWith("default-") ? item.variant.id : null,
           price: item.price || item.product.price,
           qty: item.qty,
           notes: item.sizeLabel
@@ -530,12 +531,36 @@ export default function PosPage() {
                   )
                   .reduce((sum, item) => sum + item.qty, 0);
 
-                const isRawMissing = p.isAvailableByIngredients === false;
-                const effectiveStock =
-                  p.maxProducible !== undefined && p.maxProducible !== null
-                    ? Math.min(p.stock, p.maxProducible)
-                    : p.stock;
-                const isOutOfStock = p.stock <= 0 && isRawMissing;
+                // Calculate Variant-Aware Stock Readiness for catalog card
+                const variantsList: any[] = (p.variants && p.variants.length > 0)
+                  ? p.variants
+                  : (p.allVariants && p.allVariants.length > 0)
+                  ? p.allVariants.flatMap((prod: any) => prod.variants || [])
+                  : [];
+
+                const activeVariants = variantsList.filter((v: any) => v.isActive);
+                const hasVariantData = activeVariants.length > 0;
+
+                let isAllVariantsOutOfStock = false;
+                let isPartialVariantsOutOfStock = false;
+                let isAllVariantsAvailable = false;
+                let availableCount = 0;
+
+                if (hasVariantData) {
+                  const readyVariants = activeVariants.filter(
+                    (v: any) =>
+                      v.isAvailableByIngredients !== false &&
+                      (v.maxProducible === null || v.maxProducible === undefined || v.maxProducible > 0)
+                  );
+                  availableCount = readyVariants.length;
+                  isAllVariantsAvailable = availableCount === activeVariants.length;
+                  isPartialVariantsOutOfStock = availableCount > 0 && availableCount < activeVariants.length;
+                  isAllVariantsOutOfStock = availableCount === 0;
+                } else {
+                  const isRawMissing = p.isAvailableByIngredients === false;
+                  isAllVariantsOutOfStock = p.stock <= 0 || isRawMissing;
+                  isAllVariantsAvailable = !isAllVariantsOutOfStock;
+                }
 
                 const priceDisplay =
                   p.isGrouped && p.minPrice !== p.maxPrice
@@ -548,8 +573,10 @@ export default function PosPage() {
                     type="button"
                     onClick={() => handleOpenProductModal(p)}
                     className={`relative p-3 rounded-2xl bg-white border text-left flex flex-col justify-between transition group shadow-xs cursor-pointer ${
-                      isOutOfStock
+                      isAllVariantsOutOfStock
                         ? "opacity-60 grayscale-[30%] border-rose-200 bg-rose-50/20"
+                        : isPartialVariantsOutOfStock
+                        ? "border-amber-300/80 hover:border-amber-500 hover:shadow-md"
                         : totalInCart > 0
                         ? "border-[#803838] ring-2 ring-[#803838]/20 shadow-md"
                         : "border-slate-200/80 hover:border-[#803838] hover:shadow-md"
@@ -560,27 +587,23 @@ export default function PosPage() {
                       <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 truncate">
                         {p.category?.name}
                       </span>
-                      {p.isGrouped ? (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#fdf2f0] text-[#803838] border border-[#803838]/20">
-                          {p.variantCount} Varian
+
+                      {/* Variant Readiness Badge */}
+                      {isAllVariantsOutOfStock ? (
+                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-300">
+                          ⚠️ Bahan Habis
+                        </span>
+                      ) : isPartialVariantsOutOfStock ? (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                          ⚠️ Sebagian Habis ({availableCount}/{activeVariants.length})
+                        </span>
+                      ) : p.isGrouped ? (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          ✓ {activeVariants.length} Varian Siap
                         </span>
                       ) : (
-                        <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                            isRawMissing
-                              ? "bg-rose-100 text-rose-800 border border-rose-300 font-black"
-                              : p.stock <= 0
-                              ? "bg-rose-100 text-rose-700"
-                              : effectiveStock <= 5
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {isRawMissing
-                            ? "Bahan Habis"
-                            : p.stock <= 0
-                            ? "Habis"
-                            : `${effectiveStock} ${p.unit}`}
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          ✓ {p.maxProducible !== null && p.maxProducible !== undefined ? `${p.maxProducible} ${p.unit}` : "Siap"}
                         </span>
                       )}
                     </div>

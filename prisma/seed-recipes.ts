@@ -5,7 +5,9 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding Product Ingredients / Recipes...");
 
-  const products = await prisma.product.findMany();
+  const products = await prisma.product.findMany({
+    include: { variants: true },
+  });
   const rawMaterials = await prisma.rawMaterial.findMany();
 
   const getRaw = (namePart: string) =>
@@ -22,28 +24,30 @@ async function main() {
   for (const prod of products) {
     const pName = prod.name.toLowerCase();
 
-    // Clear existing ingredients for clean seed
-    await prisma.productIngredient.deleteMany({
-      where: { productId: prod.id },
-    });
+    for (const variant of prod.variants) {
+      // Clear existing ingredients for clean seed
+      await prisma.productIngredient.deleteMany({
+        where: { variantId: variant.id },
+      });
 
-    if (pName.includes("kopi susu")) {
-      if (kopi) await prisma.productIngredient.create({ data: { productId: prod.id, rawMaterialId: kopi.id, amount: 18 } });
-      if (susu) await prisma.productIngredient.create({ data: { productId: prod.id, rawMaterialId: susu.id, amount: 150 } });
-      if (aren) await prisma.productIngredient.create({ data: { productId: prod.id, rawMaterialId: aren.id, amount: 25 } });
-      if (cup) await prisma.productIngredient.create({ data: { productId: prod.id, rawMaterialId: cup.id, amount: 1 } });
-      if (lid) await prisma.productIngredient.create({ data: { productId: prod.id, rawMaterialId: lid.id, amount: 1 } });
-    } else if (pName.includes("caramel")) {
-      if (kopi) await prisma.productIngredient.create({ data: { productId: prod.id, rawMaterialId: kopi.id, amount: 18 } });
-      if (susu) await prisma.productIngredient.create({ data: { productId: prod.id, rawMaterialId: susu.id, amount: 160 } });
-      if (caramel) await prisma.productIngredient.create({ data: { productId: prod.id, rawMaterialId: caramel.id, amount: 20 } });
-      if (cup) await prisma.productIngredient.create({ data: { productId: prod.id, rawMaterialId: cup.id, amount: 1 } });
-      if (lid) await prisma.productIngredient.create({ data: { productId: prod.id, rawMaterialId: lid.id, amount: 1 } });
-    } else if (pName.includes("matcha")) {
-      if (matcha) await prisma.productIngredient.create({ data: { productId: prod.id, rawMaterialId: matcha.id, amount: 12 } });
-      if (susu) await prisma.productIngredient.create({ data: { productId: prod.id, rawMaterialId: susu.id, amount: 180 } });
-      if (cup) await prisma.productIngredient.create({ data: { productId: prod.id, rawMaterialId: cup.id, amount: 1 } });
-      if (lid) await prisma.productIngredient.create({ data: { productId: prod.id, rawMaterialId: lid.id, amount: 1 } });
+      if (pName.includes("kopi susu")) {
+        if (kopi) await prisma.productIngredient.create({ data: { variantId: variant.id, rawMaterialId: kopi.id, amount: 18 } });
+        if (susu) await prisma.productIngredient.create({ data: { variantId: variant.id, rawMaterialId: susu.id, amount: 150 } });
+        if (aren) await prisma.productIngredient.create({ data: { variantId: variant.id, rawMaterialId: aren.id, amount: 25 } });
+        if (cup) await prisma.productIngredient.create({ data: { variantId: variant.id, rawMaterialId: cup.id, amount: 1 } });
+        if (lid) await prisma.productIngredient.create({ data: { variantId: variant.id, rawMaterialId: lid.id, amount: 1 } });
+      } else if (pName.includes("caramel")) {
+        if (kopi) await prisma.productIngredient.create({ data: { variantId: variant.id, rawMaterialId: kopi.id, amount: 18 } });
+        if (susu) await prisma.productIngredient.create({ data: { variantId: variant.id, rawMaterialId: susu.id, amount: 160 } });
+        if (caramel) await prisma.productIngredient.create({ data: { variantId: variant.id, rawMaterialId: caramel.id, amount: 20 } });
+        if (cup) await prisma.productIngredient.create({ data: { variantId: variant.id, rawMaterialId: cup.id, amount: 1 } });
+        if (lid) await prisma.productIngredient.create({ data: { variantId: variant.id, rawMaterialId: lid.id, amount: 1 } });
+      } else if (pName.includes("matcha")) {
+        if (matcha) await prisma.productIngredient.create({ data: { variantId: variant.id, rawMaterialId: matcha.id, amount: 12 } });
+        if (susu) await prisma.productIngredient.create({ data: { variantId: variant.id, rawMaterialId: susu.id, amount: 180 } });
+        if (cup) await prisma.productIngredient.create({ data: { variantId: variant.id, rawMaterialId: cup.id, amount: 1 } });
+        if (lid) await prisma.productIngredient.create({ data: { variantId: variant.id, rawMaterialId: lid.id, amount: 1 } });
+      }
     }
   }
 

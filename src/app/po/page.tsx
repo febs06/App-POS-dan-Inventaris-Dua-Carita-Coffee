@@ -52,7 +52,9 @@ export default function PoManagementPage() {
   const [pickupMethod, setPickupMethod] = useState("ambil di event");
   const [pickupDate, setPickupDate] = useState("");
   const [pickupEventId, setPickupEventId] = useState("");
-  const [poItems, setPoItems] = useState<{ productId: string; qty: number; notes: string; price: number }[]>([]);
+  const [poItems, setPoItems] = useState<
+    { productId: string; variantId: string; qty: number; notes: string; price: number }[]
+  >([]);
   const [poDiscount, setPoDiscount] = useState(0);
   const [initialPaymentType, setInitialPaymentType] = useState<"none" | "dp" | "lunas">("dp");
   const [dpAmount, setDpAmount] = useState(0);
@@ -108,9 +110,17 @@ export default function PoManagementPage() {
   const handleAddItem = () => {
     if (products.length === 0) return;
     const first = products[0];
+    const activeVars = (first.variants || []).filter((v: any) => v.isActive);
+    const firstVar = activeVars[0];
     setPoItems((prev) => [
       ...prev,
-      { productId: first.id, qty: 1, notes: "", price: first.price },
+      {
+        productId: first.id,
+        variantId: firstVar?.id || "",
+        qty: 1,
+        notes: "",
+        price: firstVar ? firstVar.price : first.price,
+      },
     ]);
   };
 
@@ -120,7 +130,23 @@ export default function PoManagementPage() {
         if (idx !== index) return it;
         if (field === "productId") {
           const prod = products.find((p) => p.id === value);
-          return { ...it, productId: value, price: prod?.price || 0 };
+          const activeVars = (prod?.variants || []).filter((v: any) => v.isActive);
+          const firstVar = activeVars[0];
+          return {
+            ...it,
+            productId: value,
+            variantId: firstVar?.id || "",
+            price: firstVar ? firstVar.price : prod?.price || 0,
+          };
+        }
+        if (field === "variantId") {
+          const prod = products.find((p) => p.id === it.productId);
+          const variant = (prod?.variants || []).find((v: any) => v.id === value);
+          return {
+            ...it,
+            variantId: value,
+            price: variant ? variant.price : prod?.price || 0,
+          };
         }
         return { ...it, [field]: value };
       })
@@ -145,9 +171,24 @@ export default function PoManagementPage() {
 
     for (const it of poItems) {
       const prod = products.find((p) => p.id === it.productId);
-      if (prod && prod.isAvailableByIngredients === false) {
-        alert(`Menu "${prod.name}" tidak dapat dipesan karena stok bahan baku tidak mencukupi di gudang!`);
-        return;
+      if (prod) {
+        const selectedVar = (prod.variants || []).find((v: any) => v.id === it.variantId);
+        if (selectedVar) {
+          if (
+            selectedVar.isAvailableByIngredients === false ||
+            (selectedVar.maxProducible !== null &&
+              selectedVar.maxProducible !== undefined &&
+              selectedVar.maxProducible < it.qty)
+          ) {
+            alert(
+              `Menu "${prod.name} (${selectedVar.packaging} ${selectedVar.size})" tidak dapat dipesan karena stok bahan baku tidak mencukupi di gudang!`
+            );
+            return;
+          }
+        } else if (prod.isAvailableByIngredients === false) {
+          alert(`Menu "${prod.name}" tidak dapat dipesan karena stok bahan baku tidak mencukupi di gudang!`);
+          return;
+        }
       }
     }
 
@@ -215,7 +256,13 @@ export default function PoManagementPage() {
         eventId: pickupMethod === "ambil di event" ? pickupEventId || null : null,
         pickupMethod,
         pickupDate: pickupDate ? new Date(pickupDate) : null,
-        items: poItems,
+        items: poItems.map((it) => ({
+          productId: it.productId,
+          variantId: it.variantId || null,
+          qty: it.qty,
+          price: it.price,
+          notes: it.notes || null,
+        })),
         discountAmount: Number(poDiscount || 0),
         payment: paymentPayload,
       };
@@ -695,54 +742,93 @@ export default function PoManagementPage() {
                 </div>
 
                 <div className="space-y-2">
-                  {poItems.map((item, idx) => (
-                    <div key={idx} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center gap-2">
-                      <select
-                        value={item.productId}
-                        onChange={(e) => handleUpdateItem(idx, "productId", e.target.value)}
-                        className="flex-1 text-xs bg-white text-slate-900 border border-slate-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                      >
-                        {products.map((p) => {
-                          const isRawMissing = p.isAvailableByIngredients === false;
-                          return (
-                            <option key={p.id} value={p.id} disabled={isRawMissing}>
-                              {p.name} - {formatRupiah(p.price)}{" "}
-                              {isRawMissing
-                                ? "⚠️ [Bahan Baku Habis]"
-                                : `(Sisa Racik: ${p.maxProducible ?? p.stock})`}
-                            </option>
-                          );
-                        })}
-                      </select>
+                  {poItems.map((item, idx) => {
+                    const currentProd = products.find((p) => p.id === item.productId);
+                    const activeVars = (currentProd?.variants || []).filter((v: any) => v.isActive);
 
-                      <div className="flex items-center gap-1.5 w-full sm:w-auto">
-                        <span className="text-xs text-slate-500">Qty:</span>
+                    return (
+                      <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                        <div className="flex flex-col sm:flex-row items-center gap-2">
+                          {/* Product selector */}
+                          <div className="flex-1 w-full">
+                            <label className="text-[10px] font-bold text-slate-500 block mb-0.5 sm:hidden">Pilih Menu:</label>
+                            <select
+                              value={item.productId}
+                              onChange={(e) => handleUpdateItem(idx, "productId", e.target.value)}
+                              className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-violet-500 font-semibold"
+                            >
+                              {products.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Variant selector dropdown */}
+                          {activeVars.length > 0 && (
+                            <div className="flex-1 w-full">
+                              <label className="text-[10px] font-bold text-slate-500 block mb-0.5 sm:hidden">Ukuran & Kemasan:</label>
+                              <select
+                                value={item.variantId}
+                                onChange={(e) => handleUpdateItem(idx, "variantId", e.target.value)}
+                                className="w-full text-xs bg-white text-slate-900 border border-slate-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-violet-500 font-semibold"
+                              >
+                                {activeVars.map((v: any) => {
+                                  const isOutOfStock =
+                                    v.isAvailableByIngredients === false ||
+                                    (v.maxProducible !== null && v.maxProducible !== undefined && v.maxProducible <= 0);
+
+                                  return (
+                                    <option key={v.id} value={v.id} disabled={isOutOfStock}>
+                                      {v.packaging} {v.size} - {formatRupiah(v.price)}{" "}
+                                      {isOutOfStock
+                                        ? "⚠️ [Bahan Habis]"
+                                        : `(Sisa: ${v.maxProducible ?? v.stock} porsi)`}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+                          )}
+
+                          {/* Qty & Remove */}
+                          <div className="flex items-center justify-between w-full sm:w-auto gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-slate-500 font-medium">Qty:</span>
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.qty}
+                                onChange={(e) => handleUpdateItem(idx, "qty", Number(e.target.value))}
+                                className="w-16 text-xs bg-white text-slate-900 border border-slate-300 rounded-lg p-2 text-center font-bold focus:outline-none focus:ring-1 focus:ring-violet-500"
+                              />
+                            </div>
+                            <span className="text-xs font-mono font-bold text-slate-700 min-w-[70px] text-right">
+                              {formatRupiah(item.price * item.qty)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(idx)}
+                              className="text-slate-400 hover:text-rose-600 p-1 rounded-lg transition cursor-pointer"
+                              title="Hapus item"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Notes input */}
                         <input
-                          type="number"
-                          min="1"
-                          value={item.qty}
-                          onChange={(e) => handleUpdateItem(idx, "qty", Number(e.target.value))}
-                          className="w-16 text-xs bg-white text-slate-900 border border-slate-300 rounded-lg p-2 text-center font-bold focus:outline-none focus:ring-1 focus:ring-violet-500"
+                          type="text"
+                          value={item.notes}
+                          onChange={(e) => handleUpdateItem(idx, "notes", e.target.value)}
+                          placeholder="Catatan pesanan item ini (cth: Less sugar, extra shot, dll.)..."
+                          className="w-full text-xs bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-violet-500"
                         />
                       </div>
-
-                      <input
-                        type="text"
-                        value={item.notes}
-                        onChange={(e) => handleUpdateItem(idx, "notes", e.target.value)}
-                        placeholder="Catatan..."
-                        className="flex-1 text-xs bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(idx)}
-                        className="text-slate-400 hover:text-rose-600 p-1"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

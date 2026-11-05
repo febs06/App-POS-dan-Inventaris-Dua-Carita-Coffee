@@ -108,11 +108,11 @@ async function main() {
   }
 
   console.log("Importing ProductIngredients...");
-  for (const item of data.ProductIngredient) {
+  for (const item of data.ProductIngredient || []) {
     await prisma.productIngredient.create({
       data: {
         id: item.id,
-        productId: item.productId,
+        variantId: item.variantId || item.productId,
         rawMaterialId: item.rawMaterialId,
         amount: item.amount,
         createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),

@@ -151,34 +151,51 @@ export async function POST(req: NextRequest) {
     }
 
     // Validasi item dan ambil HARGA RESMI DARI DATABASE (Cegah Price Tampering)
-    const productIds = items.map((it: any) => it.productId);
+    const productIds = items.map((it: any) => it.productId).filter(Boolean);
+    const variantIds = items.map((it: any) => it.variantId).filter(Boolean);
+
     const dbProducts = await prisma.product.findMany({
-      where: { id: { in: productIds } },
+      where: {
+        OR: [
+          ...(productIds.length > 0 ? [{ id: { in: productIds } }] : []),
+          ...(variantIds.length > 0 ? [{ variants: { some: { id: { in: variantIds } } } }] : []),
+        ],
+      },
       include: {
-        ingredients: {
-          include: { rawMaterial: true },
+        variants: {
+          include: {
+            ingredients: {
+              include: { rawMaterial: true },
+            },
+          },
         },
-        variants: true,
       },
     });
 
     const productMap = new Map(dbProducts.map((p) => [p.id, p]));
+    const variantMap = new Map<
+      string,
+      {
+        variant: (typeof dbProducts)[0]["variants"][0];
+        product: (typeof dbProducts)[0];
+      }
+    >();
 
-    // Ambil variant jika ada
-    const variantIds = items.map((it: any) => it.variantId).filter(Boolean);
-    const dbVariants = variantIds.length > 0
-      ? await prisma.productVariant.findMany({ where: { id: { in: variantIds } } })
-      : [];
-    const variantMap = new Map(dbVariants.map((v) => [v.id, v]));
+    for (const prod of dbProducts) {
+      for (const v of prod.variants) {
+        variantMap.set(v.id, { variant: v, product: prod });
+      }
+    }
 
     let serverSubtotal = 0;
     const validatedItems: Array<{
       productId: string;
-      variantId?: string | null;
+      variantId: string;
       qty: number;
       price: number;
       notes?: string | null;
       product: (typeof dbProducts)[0];
+      variant: (typeof dbProducts)[0]["variants"][0];
     }> = [];
 
     for (const item of items) {
@@ -187,27 +204,63 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Jumlah kuantitas item harus minimal 1" }, { status: 400 });
       }
 
-      const prod = productMap.get(item.productId);
+      let prod: (typeof dbProducts)[0] | undefined;
+      let variant: (typeof dbProducts)[0]["variants"][0] | undefined;
+
+      if (item.variantId) {
+        const mapped = variantMap.get(item.variantId);
+        if (mapped) {
+          variant = mapped.variant;
+          prod = mapped.product;
+        }
+      }
+
+      if (!prod && item.productId) {
+        prod = productMap.get(item.productId);
+      }
+
       if (!prod) {
-        return NextResponse.json({ error: `Produk tidak ditemukan (ID: ${item.productId})` }, { status: 404 });
+        return NextResponse.json({ error: `Produk tidak ditemukan (ID: ${item.productId || item.variantId})` }, { status: 404 });
       }
 
       if (!prod.isActive) {
         return NextResponse.json({ error: `Produk "${prod.name}" sedang nonaktif` }, { status: 400 });
       }
 
-      // Tentukan harga resmi: jika ada variant, gunakan harga variant; fallback ke item.price atau prod.price
-      const variant = item.variantId ? variantMap.get(item.variantId) : null;
-      const effectivePrice = variant ? variant.price : (item.price && Number(item.price) > 0 ? Number(item.price) : prod.price);
+      // Default active variant lookup jika item.variantId belum ada/ditemukan
+      if (!variant) {
+        variant =
+          prod.variants.find((v) => v.isActive && v.packaging === "Cup" && v.size === "Reguler") ||
+          prod.variants.find((v) => v.isActive && v.packaging === "Cup") ||
+          prod.variants.find((v) => v.isActive);
+      }
+
+      if (!variant) {
+        return NextResponse.json(
+          { error: `Varian aktif tidak ditemukan untuk produk "${prod.name}"` },
+          { status: 400 }
+        );
+      }
+
+      if (!variant.isActive) {
+        return NextResponse.json(
+          { error: `Varian "${variant.packaging} ${variant.size}" untuk produk "${prod.name}" sedang nonaktif` },
+          { status: 400 }
+        );
+      }
+
+      // Tentukan harga resmi: prioritaskan harga variant
+      const effectivePrice = variant.price;
 
       serverSubtotal += effectivePrice * qty;
       validatedItems.push({
         productId: prod.id,
-        variantId: variant?.id || null,
+        variantId: variant.id,
         qty,
         price: effectivePrice,
         notes: item.notes ? String(item.notes).slice(0, 200) : null,
         product: prod,
+        variant,
       });
     }
 
@@ -260,25 +313,47 @@ export async function POST(req: NextRequest) {
 
     const orderNumber = generateOrderNumber(orderSource === "PO" ? "PO" : "DIR");
 
-    // Hitung total kebutuhan bahan baku per material (hindari update berulang & timeout)
+    // Hitung total kebutuhan bahan baku per material strictly dari variant.ingredients
     const requiredMaterialsMap = new Map<
       string,
       { materialId: string; name: string; unit: string; totalAmount: number }
     >();
 
     for (const item of validatedItems) {
-      for (const ing of item.product.ingredients) {
-        const requiredAmount = ing.amount * item.qty;
-        const existing = requiredMaterialsMap.get(ing.rawMaterialId);
-        if (existing) {
-          existing.totalAmount += requiredAmount;
-        } else {
-          requiredMaterialsMap.set(ing.rawMaterialId, {
-            materialId: ing.rawMaterialId,
-            name: ing.rawMaterial?.name || "Bahan",
-            unit: ing.rawMaterial?.unit || "",
-            totalAmount: requiredAmount,
-          });
+      if (item.variant && item.variant.ingredients) {
+        for (const ing of item.variant.ingredients) {
+          const requiredAmount = ing.amount * item.qty;
+          const existing = requiredMaterialsMap.get(ing.rawMaterialId);
+          if (existing) {
+            existing.totalAmount += requiredAmount;
+          } else {
+            requiredMaterialsMap.set(ing.rawMaterialId, {
+              materialId: ing.rawMaterialId,
+              name: ing.rawMaterial?.name || "Bahan",
+              unit: ing.rawMaterial?.unit || "",
+              totalAmount: requiredAmount,
+            });
+          }
+        }
+      }
+    }
+
+    // Verifikasi ketersediaan bahan baku sebelum transaksi
+    const materialIds = Array.from(requiredMaterialsMap.keys());
+    if (materialIds.length > 0) {
+      const currentMaterials = await prisma.rawMaterial.findMany({
+        where: { id: { in: materialIds } },
+      });
+
+      for (const mat of currentMaterials) {
+        const req = requiredMaterialsMap.get(mat.id);
+        if (req && mat.stock < req.totalAmount) {
+          return NextResponse.json(
+            {
+              error: `Pesanan ditolak: Bahan baku "${mat.name}" tidak cukup. (Dibutuhkan: ${req.totalAmount} ${mat.unit}, Sisa: ${mat.stock} ${mat.unit})`,
+            },
+            { status: 400 }
+          );
         }
       }
     }
@@ -286,8 +361,7 @@ export async function POST(req: NextRequest) {
     // Eksekusi atomik database transaction dengan timeout 30 detik untuk lingkungan serverless (Vercel)
     const result = await prisma.$transaction(
       async (tx) => {
-        // 1. Verifikasi ketersediaan bahan baku secara batch
-        const materialIds = Array.from(requiredMaterialsMap.keys());
+        // 1. Verifikasi ketersediaan bahan baku secara batch dalam transaksi
         if (materialIds.length > 0) {
           const currentMaterials = await tx.rawMaterial.findMany({
             where: { id: { in: materialIds } },
@@ -323,7 +397,7 @@ export async function POST(req: NextRequest) {
             items: {
               create: validatedItems.map((item) => ({
                 productId: item.productId,
-                variantId: item.variantId || null,
+                variantId: item.variantId,
                 qty: item.qty,
                 price: item.price,
                 notes: item.notes,
@@ -355,7 +429,17 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        // 4. Catat StockLog produk secara batch
+        // 4. Potong stok varian produk
+        for (const item of validatedItems) {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: {
+              stock: { decrement: item.qty },
+            },
+          });
+        }
+
+        // 5. Catat StockLog produk secara batch
         await tx.stockLog.createMany({
           data: validatedItems.map((item) => ({
             productId: item.productId,
@@ -365,7 +449,7 @@ export async function POST(req: NextRequest) {
           })),
         });
 
-        // 5. Potong stok bahan baku secara batch
+        // 6. Potong stok bahan baku secara batch
         for (const [matId, req] of requiredMaterialsMap.entries()) {
           await tx.rawMaterial.update({
             where: { id: matId },
@@ -375,7 +459,7 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        // 6. Catat RawMaterialLog secara batch
+        // 7. Catat RawMaterialLog secara batch
         if (requiredMaterialsMap.size > 0) {
           await tx.rawMaterialLog.createMany({
             data: Array.from(requiredMaterialsMap.entries()).map(([matId, req]) => ({
@@ -387,7 +471,7 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        // 7. Tambah usageCount voucher jika pakai voucher
+        // 8. Tambah usageCount voucher jika pakai voucher
         if (appliedVoucherId) {
           await tx.voucher.update({
             where: { id: appliedVoucherId },
@@ -412,7 +496,10 @@ export async function POST(req: NextRequest) {
         event: true,
         voucher: true,
         items: {
-          include: { product: true },
+          include: {
+            product: true,
+            variant: true,
+          },
         },
         payments: true,
       },
@@ -446,8 +533,13 @@ export async function PUT(req: NextRequest) {
         voucher: true,
         items: {
           include: {
-            product: {
-              include: { ingredients: true },
+            product: true,
+            variant: {
+              include: {
+                ingredients: {
+                  include: { rawMaterial: true },
+                },
+              },
             },
           },
         },
@@ -466,78 +558,95 @@ export async function PUT(req: NextRequest) {
 
       const voidAuthor = session ? `${session.name} (${session.role})` : "Kasir";
 
-      const updated = await prisma.$transaction(async (tx) => {
-        // Kembalikan stok setiap item & bahan bakunya
-        for (const item of currentOrder.items) {
-          // 1. Kembalikan stok produk jadi
-          await tx.product.update({
-            where: { id: item.productId },
-            data: {
-              stock: { increment: item.qty },
-            },
-          });
+      const updated = await prisma.$transaction(
+        async (tx) => {
+          // Kembalikan stok setiap item, varian & bahan bakunya
+          for (const item of currentOrder.items) {
+            // 1. Kembalikan stok produk jadi
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                stock: { increment: item.qty },
+              },
+            });
 
-          await tx.stockLog.create({
-            data: {
-              productId: item.productId,
-              changeQty: item.qty,
-              reason: "koreksi",
-              eventId: currentOrder.eventId,
-            },
-          });
+            await tx.stockLog.create({
+              data: {
+                productId: item.productId,
+                changeQty: item.qty,
+                reason: "koreksi",
+                eventId: currentOrder.eventId,
+              },
+            });
 
-          // 2. Kembalikan stok bahan baku (FIX: Rollback bahan baku sesuai resep)
-          if (item.product?.ingredients && item.product.ingredients.length > 0) {
-            for (const ing of item.product.ingredients) {
-              const returnAmount = ing.amount * item.qty;
-              await tx.rawMaterial.update({
-                where: { id: ing.rawMaterialId },
+            // 2. Kembalikan stok varian produk jika ada
+            if (item.variantId && item.variant) {
+              await tx.productVariant.update({
+                where: { id: item.variantId },
                 data: {
-                  stock: { increment: returnAmount },
-                },
-              });
-
-              await tx.rawMaterialLog.create({
-                data: {
-                  rawMaterialId: ing.rawMaterialId,
-                  changeQty: returnAmount,
-                  type: "koreksi",
-                  notes: `Rollback void order ${currentOrder.orderNumber} (${returnAmount} ${ing.rawMaterialId})`,
+                  stock: { increment: item.qty },
                 },
               });
             }
-          }
-        }
 
-        // Kembalikan pemakaian voucher jika ada
-        if (currentOrder.voucherId && currentOrder.voucher && currentOrder.voucher.usedCount > 0) {
-          await tx.voucher.update({
-            where: { id: currentOrder.voucherId },
+            // 3. Kembalikan stok bahan baku dari variant.ingredients (safely handle variantId = null)
+            if (item.variant?.ingredients && item.variant.ingredients.length > 0) {
+              for (const ing of item.variant.ingredients) {
+                const returnAmount = ing.amount * item.qty;
+                await tx.rawMaterial.update({
+                  where: { id: ing.rawMaterialId },
+                  data: {
+                    stock: { increment: returnAmount },
+                  },
+                });
+
+                await tx.rawMaterialLog.create({
+                  data: {
+                    rawMaterialId: ing.rawMaterialId,
+                    changeQty: returnAmount,
+                    type: "koreksi",
+                    notes: `Rollback void order ${currentOrder.orderNumber} (${returnAmount} ${ing.rawMaterial?.unit || ""})`,
+                  },
+                });
+              }
+            }
+          }
+
+          // Kembalikan pemakaian voucher jika ada
+          if (currentOrder.voucherId && currentOrder.voucher && currentOrder.voucher.usedCount > 0) {
+            await tx.voucher.update({
+              where: { id: currentOrder.voucherId },
+              data: {
+                usedCount: { decrement: 1 },
+              },
+            });
+          }
+
+          return tx.order.update({
+            where: { id },
             data: {
-              usedCount: { decrement: 1 },
+              status: "dibatalkan",
+              isVoided: true,
+              voidReason: `${voidReason.trim()} [Dibatalkan oleh: ${voidAuthor}]`,
+            },
+            include: {
+              customer: true,
+              event: true,
+              items: {
+                include: {
+                  product: true,
+                  variant: true,
+                },
+              },
+              payments: true,
             },
           });
+        },
+        {
+          maxWait: 15000,
+          timeout: 30000,
         }
-
-        return tx.order.update({
-          where: { id },
-          data: {
-            status: "dibatalkan",
-            isVoided: true,
-            voidReason: `${voidReason.trim()} [Dibatalkan oleh: ${voidAuthor}]`,
-          },
-          include: {
-            customer: true,
-            event: true,
-            items: { include: { product: true } },
-            payments: true,
-          },
-        });
-      },
-      {
-        maxWait: 15000,
-        timeout: 30000,
-      });
+      );
 
       return NextResponse.json(updated);
     }
@@ -551,7 +660,12 @@ export async function PUT(req: NextRequest) {
       include: {
         customer: true,
         event: true,
-        items: { include: { product: true } },
+        items: {
+          include: {
+            product: true,
+            variant: true,
+          },
+        },
         payments: true,
       },
     });
@@ -580,8 +694,13 @@ export async function DELETE(req: NextRequest) {
         voucher: true,
         items: {
           include: {
-            product: {
-              include: { ingredients: true },
+            product: true,
+            variant: {
+              include: {
+                ingredients: {
+                  include: { rawMaterial: true },
+                },
+              },
             },
           },
         },
@@ -592,66 +711,82 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Order tidak ditemukan" }, { status: 404 });
     }
 
-    await prisma.$transaction(async (tx) => {
-      // 1. Kembalikan stok produk & bahan baku jika diminta dan transaksi belum di-void
-      if (restoreStock && !order.isVoided) {
-        for (const item of order.items) {
-          // Kembalikan stok produk
-          await tx.product.update({
-            where: { id: item.productId },
-            data: {
-              stock: { increment: item.qty },
-            },
-          });
+    await prisma.$transaction(
+      async (tx) => {
+        // 1. Kembalikan stok produk, varian & bahan baku jika diminta dan transaksi belum di-void
+        if (restoreStock && !order.isVoided) {
+          for (const item of order.items) {
+            // Kembalikan stok produk
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                stock: { increment: item.qty },
+              },
+            });
 
-          await tx.stockLog.create({
-            data: {
-              productId: item.productId,
-              changeQty: item.qty,
-              reason: "koreksi",
-              eventId: order.eventId,
-            },
-          });
+            await tx.stockLog.create({
+              data: {
+                productId: item.productId,
+                changeQty: item.qty,
+                reason: "koreksi",
+                eventId: order.eventId,
+              },
+            });
 
-          // Kembalikan stok bahan baku
-          if (item.product?.ingredients && item.product.ingredients.length > 0) {
-            for (const ing of item.product.ingredients) {
-              const usedAmount = ing.amount * item.qty;
-              await tx.rawMaterial.update({
-                where: { id: ing.rawMaterialId },
+            // Kembalikan stok varian produk jika ada
+            if (item.variantId && item.variant) {
+              await tx.productVariant.update({
+                where: { id: item.variantId },
                 data: {
-                  stock: { increment: usedAmount },
-                },
-              });
-
-              await tx.rawMaterialLog.create({
-                data: {
-                  rawMaterialId: ing.rawMaterialId,
-                  changeQty: usedAmount,
-                  type: "koreksi",
-                  notes: `Pengembalian bahan dari penghapusan pesanan ${order.orderNumber}`,
+                  stock: { increment: item.qty },
                 },
               });
             }
+
+            // Kembalikan stok bahan baku dari variant.ingredients (safely handle variantId = null)
+            if (item.variant?.ingredients && item.variant.ingredients.length > 0) {
+              for (const ing of item.variant.ingredients) {
+                const usedAmount = ing.amount * item.qty;
+                await tx.rawMaterial.update({
+                  where: { id: ing.rawMaterialId },
+                  data: {
+                    stock: { increment: usedAmount },
+                  },
+                });
+
+                await tx.rawMaterialLog.create({
+                  data: {
+                    rawMaterialId: ing.rawMaterialId,
+                    changeQty: usedAmount,
+                    type: "koreksi",
+                    notes: `Pengembalian bahan dari penghapusan pesanan ${order.orderNumber} (${usedAmount} ${ing.rawMaterial?.unit || ""})`,
+                  },
+                });
+              }
+            }
           }
         }
-      }
 
-      // 2. Kembalikan pemakaian voucher jika ada
-      if (order.voucherId && order.voucher && order.voucher.usedCount > 0) {
-        await tx.voucher.update({
-          where: { id: order.voucherId },
-          data: {
-            usedCount: { decrement: 1 },
-          },
+        // 2. Kembalikan pemakaian voucher jika ada
+        if (order.voucherId && order.voucher && order.voucher.usedCount > 0) {
+          await tx.voucher.update({
+            where: { id: order.voucherId },
+            data: {
+              usedCount: { decrement: 1 },
+            },
+          });
+        }
+
+        // 3. Hapus order (OrderItem & Payment terhapus otomatis via cascade)
+        await tx.order.delete({
+          where: { id },
         });
+      },
+      {
+        maxWait: 15000,
+        timeout: 30000,
       }
-
-      // 3. Hapus order (OrderItem & Payment terhapus otomatis via cascade)
-      await tx.order.delete({
-        where: { id },
-      });
-    });
+    );
 
     return NextResponse.json({
       success: true,

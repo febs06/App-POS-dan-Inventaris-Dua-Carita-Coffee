@@ -27,6 +27,10 @@ export interface ProductVariant {
   cost: number;
   stock: number;
   isActive: boolean;
+  isAvailableByIngredients?: boolean;
+  missingIngredients?: string[];
+  maxProducible?: number | null;
+  calculatedHpp?: number;
 }
 
 export interface Product {
@@ -98,6 +102,9 @@ export default function PosProductModal({
         cost: product.cost || 0,
         stock: product.stock,
         isActive: true,
+        isAvailableByIngredients: product.isAvailableByIngredients,
+        missingIngredients: product.missingIngredients,
+        maxProducible: product.maxProducible,
       },
     ];
   }, [product]);
@@ -147,6 +154,14 @@ export default function PosProductModal({
     return availableVariantsForPackaging[0] || activeVariants[0] || null;
   }, [availableVariantsForPackaging, selectedSize, activeVariants]);
 
+  const isCurrentVariantOutOfStock = Boolean(
+    currentVariant &&
+      (currentVariant.isAvailableByIngredients === false ||
+        (currentVariant.maxProducible !== null &&
+          currentVariant.maxProducible !== undefined &&
+          currentVariant.maxProducible <= 0))
+  );
+
   if (!isOpen || !product) return null;
 
   const baseDisplayName = normalizeProductName(product.name);
@@ -169,6 +184,12 @@ export default function PosProductModal({
 
   const handleSubmit = () => {
     if (qty <= 0) return;
+    if (isCurrentVariantOutOfStock) {
+      alert(
+        `Varian "${currentVariant?.packaging} ${currentVariant?.size}" tidak dapat dipesan karena bahan baku habis di gudang.`
+      );
+      return;
+    }
     onAddToCart(product, qty, notes.trim(), currentVariant);
     onClose();
   };
@@ -253,27 +274,65 @@ export default function PosProductModal({
               <div className="grid grid-cols-2 gap-2.5">
                 {availableVariantsForPackaging.map((v) => {
                   const isSelected = selectedSize === v.size;
+                  const isOutOfStock =
+                    v.isAvailableByIngredients === false ||
+                    (v.maxProducible !== null && v.maxProducible !== undefined && v.maxProducible <= 0);
+
                   return (
                     <button
                       key={v.id || v.size}
                       type="button"
                       onClick={() => setSelectedSize(v.size)}
-                      className={`py-2.5 px-3 rounded-2xl border-2 text-left transition cursor-pointer flex flex-col justify-between ${
+                      className={`py-2.5 px-3 rounded-2xl border-2 text-left transition cursor-pointer flex flex-col justify-between gap-1.5 ${
                         isSelected
-                          ? "border-[#852d2d] bg-[#fbebe9] shadow-xs"
+                          ? isOutOfStock
+                            ? "border-rose-400 bg-rose-50/70 shadow-xs ring-1 ring-rose-400"
+                            : "border-[#852d2d] bg-[#fbebe9] shadow-xs"
+                          : isOutOfStock
+                          ? "border-rose-200 bg-rose-50/30 hover:border-rose-300"
                           : "border-slate-200 bg-white hover:border-slate-300"
                       }`}
                     >
-                      <span className={`text-xs font-bold ${isSelected ? "text-[#852d2d]" : "text-slate-800"}`}>
-                        {v.size}
-                      </span>
-                      <span className={`text-[11px] font-mono mt-0.5 ${isSelected ? "text-[#852d2d] font-bold" : "text-slate-500"}`}>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className={`text-xs font-bold ${isSelected ? (isOutOfStock ? "text-rose-900" : "text-[#852d2d]") : "text-slate-800"}`}>
+                          {v.size}
+                        </span>
+                        {/* Real-time readiness badge */}
+                        {isOutOfStock ? (
+                          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-300">
+                            Bahan Habis
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            ✓ {v.maxProducible !== null && v.maxProducible !== undefined ? `${v.maxProducible} Porsi` : "Tersedia"}
+                          </span>
+                        )}
+                      </div>
+                      <span className={`text-[11px] font-mono ${isSelected ? (isOutOfStock ? "text-rose-700 font-bold" : "text-[#852d2d] font-bold") : "text-slate-500"}`}>
                         {formatRupiah(v.price)}
                       </span>
                     </button>
                   );
                 })}
               </div>
+
+              {/* Alert if current selected variant is out of stock */}
+              {isCurrentVariantOutOfStock && (
+                <div className="mt-2.5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2 animate-in fade-in">
+                  <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold">Bahan Baku Tidak Cukup di Gudang</div>
+                    <div className="text-[11px] text-rose-600 mt-0.5">
+                      Varian <strong>{currentVariant?.packaging} {currentVariant?.size}</strong> tidak dapat diproses kasir karena bahan baku habis:{" "}
+                      <span className="font-semibold">
+                        {currentVariant?.missingIngredients && currentVariant.missingIngredients.length > 0
+                          ? currentVariant.missingIngredients.join(", ")
+                          : "Stok bahan kurang"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -364,11 +423,16 @@ export default function PosProductModal({
             </button>
             <button
               type="button"
+              disabled={isCurrentVariantOutOfStock}
               onClick={handleSubmit}
-              className="px-5 py-2.5 rounded-xl text-xs font-black bg-[#852d2d] text-white hover:bg-[#6e2323] shadow-md shadow-[#852d2d]/20 transition flex items-center gap-1.5 cursor-pointer"
+              className={`px-5 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${
+                isCurrentVariantOutOfStock
+                  ? "bg-rose-100 text-rose-700 border border-rose-300 cursor-not-allowed opacity-90"
+                  : "bg-[#852d2d] text-white hover:bg-[#6e2323] shadow-md shadow-[#852d2d]/20 cursor-pointer"
+              }`}
             >
               <ShoppingCart className="h-4 w-4" />
-              <span>Tambah Pesanan</span>
+              <span>{isCurrentVariantOutOfStock ? "Bahan Habis" : "Tambah Pesanan"}</span>
             </button>
           </div>
         </div>

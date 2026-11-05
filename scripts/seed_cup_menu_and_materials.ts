@@ -336,24 +336,30 @@ async function main() {
 
     // Update ingredients (resep)
     console.log(`Setting recipes for ${menu.name}...`);
-    await prisma.productIngredient.deleteMany({
+    const variants = await prisma.productVariant.findMany({
       where: { productId: product.id },
     });
 
-    for (const ing of menu.ingredients) {
-      const rawId = materialMap.get(ing.rawName);
-      if (!rawId) {
-        console.warn(`Warning: Raw material "${ing.rawName}" not found!`);
-        continue;
-      }
-
-      await prisma.productIngredient.create({
-        data: {
-          productId: product.id,
-          rawMaterialId: rawId,
-          amount: ing.amount,
-        },
+    for (const v of variants) {
+      await prisma.productIngredient.deleteMany({
+        where: { variantId: v.id },
       });
+
+      for (const ing of menu.ingredients) {
+        const rawId = materialMap.get(ing.rawName);
+        if (!rawId) {
+          console.warn(`Warning: Raw material "${ing.rawName}" not found!`);
+          continue;
+        }
+
+        await prisma.productIngredient.create({
+          data: {
+            variantId: v.id,
+            rawMaterialId: rawId,
+            amount: ing.amount,
+          },
+        });
+      }
     }
   }
 

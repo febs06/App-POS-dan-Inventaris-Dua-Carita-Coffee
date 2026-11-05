@@ -30,5 +30,12 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "prisma/seed-recipes.ts",
+    "scripts/import_to_neon.ts",
+    "scripts/seed_bottle_and_caffe_latte.ts",
+    "scripts/seed_cup_menu_and_materials.ts",
+    "scripts/update_hpp_and_packaging.ts"
+  ]
 }

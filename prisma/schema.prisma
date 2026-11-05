@@ -50,7 +50,6 @@ model Product {
   category    Category            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   orderItems  OrderItem[]
   stockLogs   StockLog[]
-  ingredients ProductIngredient[]
   variants    ProductVariant[]
 }
 
@@ -66,8 +65,9 @@ model ProductVariant {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  orderItems OrderItem[]
+  product     Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems  OrderItem[]
+  ingredients ProductIngredient[]
 
   @@unique([productId, packaging, size])
 }
@@ -248,15 +248,15 @@ model Employee {
 
 model ProductIngredient {
   id            String      @id @default(cuid())
-  productId     String
+  variantId     String
   rawMaterialId String
   amount        Float       // Takaran per 1 porsi/produk (misal: 18 untuk gram kopi, 150 untuk ml susu, 1 untuk pcs cup)
   createdAt     DateTime    @default(now())
 
-  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id], onDelete: Cascade)
+  variant       ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  rawMaterial   RawMaterial    @relation(fields: [rawMaterialId], references: [id], onDelete: Cascade)
 
-  @@unique([productId, rawMaterialId])
+  @@unique([variantId, rawMaterialId])
 }
 
 model Supplier {
