@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { formatRupiah, formatDateTime, formatDate, getStatusBadge, getPaymentBadge } from "@/lib/format";
 import {
   FileText,
@@ -15,10 +15,12 @@ import {
   AlertCircle,
   Eye,
   Trash2,
+  RotateCcw,
 } from "lucide-react";
 import ReceiptModal from "@/components/ReceiptModal";
 import VoidModal from "@/components/VoidModal";
 import DeleteOrderModal from "@/components/DeleteOrderModal";
+import SortableHeader from "@/components/SortableHeader";
 
 
 export default function ReportsPage() {
@@ -129,6 +131,69 @@ export default function ReportsPage() {
       .filter((o) => (o.payments || []).some((p: any) => p.method?.toUpperCase() === "CASH"))
       .map((o) => o.id)
   ).size;
+
+  // SteamDB-style Column Sorting State
+  const [sortConfig, setSortConfig] = useState<{
+    key: string | null;
+    direction: "asc" | "desc";
+  }>({ key: null, direction: "desc" });
+
+  const handleSort = (key: string) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        if (prev.direction === "asc") return { key, direction: "desc" };
+        return { key: null, direction: "desc" };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  const sortedOrders = useMemo(() => {
+    if (!sortConfig.key) return filteredOrders;
+
+    const { key, direction } = sortConfig;
+
+    return [...filteredOrders].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      if (key === "totalAmount") {
+        aVal = a.totalAmount ?? 0;
+        bVal = b.totalAmount ?? 0;
+      } else if (key === "createdAt") {
+        aVal = new Date(a.createdAt).getTime();
+        bVal = new Date(b.createdAt).getTime();
+      } else if (key === "orderNumber") {
+        aVal = a.orderNumber || "";
+        bVal = b.orderNumber || "";
+      } else if (key === "orderSource") {
+        aVal = a.orderSource || "";
+        bVal = b.orderSource || "";
+      } else if (key === "customerName") {
+        aVal = (a.customer?.name || a.customerName || a.event?.name || "").toLowerCase();
+        bVal = (b.customer?.name || b.customerName || b.event?.name || "").toLowerCase();
+      } else if (key === "paymentStatus") {
+        aVal = a.paymentStatus || "";
+        bVal = b.paymentStatus || "";
+      } else if (key === "status") {
+        aVal = a.status || "";
+        bVal = b.status || "";
+      } else {
+        aVal = (a[key as keyof typeof a] ?? "").toString().toLowerCase();
+        bVal = (b[key as keyof typeof b] ?? "").toString().toLowerCase();
+      }
+
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return direction === "asc" ? aVal - bVal : bVal - aVal;
+      }
+
+      const aStr = String(aVal || "").toLowerCase();
+      const bStr = String(bVal || "").toLowerCase();
+      if (aStr < bStr) return direction === "asc" ? -1 : 1;
+      if (aStr > bStr) return direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filteredOrders, sortConfig]);
 
   return (
     <div className="space-y-6">
@@ -330,22 +395,90 @@ export default function ReportsPage() {
           </div>
         </div>
 
+        {/* Active Sorting Banner ala SteamDB */}
+        {sortConfig.key && (
+          <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs no-print">
+            <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-2">
+              <span>⚡ Diurutkan berdasarkan:</span>
+              <strong className="uppercase font-black">{sortConfig.key}</strong>
+              <span>({sortConfig.direction === "asc" ? "Terkecil ke Terbesar / A-Z" : "Terbesar ke Terkecil / Z-A"})</span>
+            </span>
+            <button
+              onClick={() => setSortConfig({ key: null, direction: "desc" })}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold cursor-pointer transition border border-slate-200 dark:border-slate-700 shadow-xs"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Reset Urutan Default
+            </button>
+          </div>
+        )}
+
         {/* Reports Table */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden print:border-none print:shadow-none">
           <div className="overflow-x-auto print:overflow-visible">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+              <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-3">No. Order</th>
-                  <th className="py-3 px-3">Waktu</th>
-                  <th className="py-3 px-3">Tipe</th>
-                  <th className="py-3 px-3">Pelanggan / Event</th>
-                  <th className="py-3 px-3">Item Pesanan</th>
-                  <th className="py-3 px-3">Total Tagihan</th>
-                  <th className="py-3 px-3">Status Bayar</th>
-                  <th className="py-3 px-3">Tipe Bayar</th>
-                  <th className="py-3 px-3">Status Order</th>
-                  <th className="py-3 px-3 text-right no-print">Aksi</th>
+                  <SortableHeader
+                    label="No. Order"
+                    columnKey="orderNumber"
+                    currentSortKey={sortConfig.key}
+                    sortDirection={sortConfig.direction}
+                    onSort={handleSort}
+                    className="py-3 px-3 text-slate-700"
+                  />
+                  <SortableHeader
+                    label="Waktu"
+                    columnKey="createdAt"
+                    currentSortKey={sortConfig.key}
+                    sortDirection={sortConfig.direction}
+                    onSort={handleSort}
+                    className="py-3 px-3 text-slate-700"
+                  />
+                  <SortableHeader
+                    label="Tipe"
+                    columnKey="orderSource"
+                    currentSortKey={sortConfig.key}
+                    sortDirection={sortConfig.direction}
+                    onSort={handleSort}
+                    className="py-3 px-3 text-slate-700"
+                  />
+                  <SortableHeader
+                    label="Pelanggan / Event"
+                    columnKey="customerName"
+                    currentSortKey={sortConfig.key}
+                    sortDirection={sortConfig.direction}
+                    onSort={handleSort}
+                    className="py-3 px-3 text-slate-700"
+                  />
+                  <th className="py-3 px-3 text-slate-700">Item Pesanan</th>
+                  <SortableHeader
+                    label="Total Tagihan"
+                    columnKey="totalAmount"
+                    currentSortKey={sortConfig.key}
+                    sortDirection={sortConfig.direction}
+                    onSort={handleSort}
+                    align="right"
+                    className="py-3 px-3 text-right text-slate-700 font-bold"
+                  />
+                  <SortableHeader
+                    label="Status Bayar"
+                    columnKey="paymentStatus"
+                    currentSortKey={sortConfig.key}
+                    sortDirection={sortConfig.direction}
+                    onSort={handleSort}
+                    className="py-3 px-3 text-slate-700"
+                  />
+                  <th className="py-3 px-3 text-slate-700">Tipe Bayar</th>
+                  <SortableHeader
+                    label="Status Order"
+                    columnKey="status"
+                    currentSortKey={sortConfig.key}
+                    sortDirection={sortConfig.direction}
+                    onSort={handleSort}
+                    className="py-3 px-3 text-slate-700"
+                  />
+                  <th className="py-3 px-3 text-right text-slate-700 no-print">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -355,14 +488,14 @@ export default function ReportsPage() {
                       Memuat data transaksi...
                     </td>
                   </tr>
-                ) : filteredOrders.length === 0 ? (
+                ) : sortedOrders.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="py-12 text-center text-slate-400">
                       Tidak ada riwayat transaksi yang cocok dengan filter.
                     </td>
                   </tr>
                 ) : (
-                  filteredOrders.map((order) => {
+                  sortedOrders.map((order) => {
                     const statusBadge = getStatusBadge(order.status);
                     const paymentBadge = getPaymentBadge(order.paymentStatus);
                     const isVoided = order.isVoided;

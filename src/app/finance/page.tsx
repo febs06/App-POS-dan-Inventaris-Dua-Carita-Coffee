@@ -29,7 +29,9 @@ import {
   Calculator,
   PieChart,
   ClipboardList,
+  RotateCcw,
 } from "lucide-react";
+import SortableHeader from "@/components/SortableHeader";
 
 interface CashRecord {
   id: string;
@@ -144,6 +146,109 @@ export default function FinancePage() {
   const [formRabFundedBy, setFormRabFundedBy] = useState("DCC");
   const [formRabNotes, setFormRabNotes] = useState("");
   const [submittingRab, setSubmittingRab] = useState(false);
+
+  // SteamDB-style Column Sorting State (Arus Kas)
+  const [cashSortConfig, setCashSortConfig] = useState<{
+    key: string | null;
+    direction: "asc" | "desc";
+  }>({ key: null, direction: "asc" });
+
+  const handleCashSort = (key: string) => {
+    setCashSortConfig((prev) => {
+      if (prev.key === key) {
+        if (prev.direction === "asc") return { key, direction: "desc" };
+        return { key: null, direction: "asc" };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  const sortedRecords = useMemo(() => {
+    if (!cashSortConfig.key) return records;
+
+    const { key, direction } = cashSortConfig;
+
+    return [...records].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      if (key === "seqNo") {
+        aVal = a.seqNo ?? 0;
+        bVal = b.seqNo ?? 0;
+      } else if (key === "masuk") {
+        aVal = a.type === "MASUK" ? a.amount : 0;
+        bVal = b.type === "MASUK" ? b.amount : 0;
+      } else if (key === "keluar") {
+        aVal = a.type === "KELUAR" ? a.amount : 0;
+        bVal = b.type === "KELUAR" ? b.amount : 0;
+      } else if (key === "date") {
+        aVal = new Date(a.date).getTime();
+        bVal = new Date(b.date).getTime();
+      } else if (key === "amount") {
+        aVal = a.amount;
+        bVal = b.amount;
+      } else if (key === "balance") {
+        aVal = a.balance;
+        bVal = b.balance;
+      } else if (key === "category") {
+        aVal = (CATEGORY_LABELS[a.category]?.label || a.category || "").toLowerCase();
+        bVal = (CATEGORY_LABELS[b.category]?.label || b.category || "").toLowerCase();
+      } else {
+        aVal = (a[key as keyof CashRecord] ?? "").toString().toLowerCase();
+        bVal = (b[key as keyof CashRecord] ?? "").toString().toLowerCase();
+      }
+
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return direction === "asc" ? aVal - bVal : bVal - aVal;
+      }
+
+      if (aVal < bVal) return direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [records, cashSortConfig]);
+
+  // SteamDB-style Column Sorting State (RAB)
+  const [rabSortConfig, setRabSortConfig] = useState<{
+    key: string | null;
+    direction: "asc" | "desc";
+  }>({ key: null, direction: "asc" });
+
+  const handleRabSort = (key: string) => {
+    setRabSortConfig((prev) => {
+      if (prev.key === key) {
+        if (prev.direction === "asc") return { key, direction: "desc" };
+        return { key: null, direction: "asc" };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  const sortedRabItems = useMemo(() => {
+    if (!rabSortConfig.key) return rabItems;
+
+    const { key, direction } = rabSortConfig;
+
+    return [...rabItems].sort((a, b) => {
+      let aVal: any = a[key as keyof RabItem];
+      let bVal: any = b[key as keyof RabItem];
+
+      if (key === "totalPrice" || key === "totalAmount") {
+        aVal = a.totalPrice;
+        bVal = b.totalPrice;
+      }
+
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return direction === "asc" ? aVal - bVal : bVal - aVal;
+      }
+
+      const aStr = String(aVal ?? "").toLowerCase();
+      const bStr = String(bVal ?? "").toLowerCase();
+      if (aStr < bStr) return direction === "asc" ? -1 : 1;
+      if (aStr > bStr) return direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [rabItems, rabSortConfig]);
 
   // Load cashflow records
   const fetchRecords = async () => {
@@ -650,21 +755,106 @@ export default function FinancePage() {
             </div>
           </div>
 
+          {/* Active Sorting Banner ala SteamDB */}
+          {cashSortConfig.key && (
+            <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs">
+              <span className="text-amber-400 font-semibold flex items-center gap-2">
+                <span>⚡ Diurutkan berdasarkan:</span>
+                <strong className="uppercase font-black">{cashSortConfig.key}</strong>
+                <span>({cashSortConfig.direction === "asc" ? "Terkecil ke Terbesar / A-Z" : "Terbesar ke Terkecil / Z-A"})</span>
+              </span>
+              <button
+                onClick={() => setCashSortConfig({ key: null, direction: "asc" })}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold cursor-pointer transition border border-slate-700"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Reset Urutan Default
+              </button>
+            </div>
+          )}
+
           {/* Main Table Cash & QRIS */}
           <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-950 border-b border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   <tr>
-                    <th className="py-3.5 px-4 w-12 text-center">NO</th>
-                    {selectedAccount === "all" && <th className="py-3.5 px-3 w-20 text-center">AKUN</th>}
-                    <th className="py-3.5 px-4 w-28">TANGGAL</th>
-                    <th className="py-3.5 px-4">NAMA / TRANSAKSI</th>
-                    <th className="py-3.5 px-4">KATEGORI</th>
-                    <th className="py-3.5 px-4 text-right">MASUK</th>
-                    <th className="py-3.5 px-4 text-right">KELUAR</th>
-                    <th className="py-3.5 px-4 text-right font-black">TOTAL (SALDO)</th>
-                    <th className="py-3.5 px-4">KASIR / KETERANGAN</th>
+                    <SortableHeader
+                      label="NO"
+                      columnKey="seqNo"
+                      currentSortKey={cashSortConfig.key}
+                      sortDirection={cashSortConfig.direction}
+                      onSort={handleCashSort}
+                      align="center"
+                      className="w-12 text-center"
+                    />
+                    {selectedAccount === "all" && (
+                      <SortableHeader
+                        label="AKUN"
+                        columnKey="account"
+                        currentSortKey={cashSortConfig.key}
+                        sortDirection={cashSortConfig.direction}
+                        onSort={handleCashSort}
+                        align="center"
+                        className="w-20 text-center"
+                      />
+                    )}
+                    <SortableHeader
+                      label="TANGGAL"
+                      columnKey="date"
+                      currentSortKey={cashSortConfig.key}
+                      sortDirection={cashSortConfig.direction}
+                      onSort={handleCashSort}
+                      className="w-28"
+                    />
+                    <SortableHeader
+                      label="NAMA / TRANSAKSI"
+                      columnKey="name"
+                      currentSortKey={cashSortConfig.key}
+                      sortDirection={cashSortConfig.direction}
+                      onSort={handleCashSort}
+                    />
+                    <SortableHeader
+                      label="KATEGORI"
+                      columnKey="category"
+                      currentSortKey={cashSortConfig.key}
+                      sortDirection={cashSortConfig.direction}
+                      onSort={handleCashSort}
+                    />
+                    <SortableHeader
+                      label="MASUK"
+                      columnKey="masuk"
+                      currentSortKey={cashSortConfig.key}
+                      sortDirection={cashSortConfig.direction}
+                      onSort={handleCashSort}
+                      align="right"
+                      className="text-right"
+                    />
+                    <SortableHeader
+                      label="KELUAR"
+                      columnKey="keluar"
+                      currentSortKey={cashSortConfig.key}
+                      sortDirection={cashSortConfig.direction}
+                      onSort={handleCashSort}
+                      align="right"
+                      className="text-right"
+                    />
+                    <SortableHeader
+                      label="TOTAL (SALDO)"
+                      columnKey="balance"
+                      currentSortKey={cashSortConfig.key}
+                      sortDirection={cashSortConfig.direction}
+                      onSort={handleCashSort}
+                      align="right"
+                      className="text-right font-black"
+                    />
+                    <SortableHeader
+                      label="KASIR / KETERANGAN"
+                      columnKey="cashier"
+                      currentSortKey={cashSortConfig.key}
+                      sortDirection={cashSortConfig.direction}
+                      onSort={handleCashSort}
+                    />
                     <th className="py-3.5 px-4 w-14 text-center">AKSI</th>
                   </tr>
                 </thead>
@@ -676,14 +866,14 @@ export default function FinancePage() {
                         <p>Memuat catatan pembukuan...</p>
                       </td>
                     </tr>
-                  ) : records.length === 0 ? (
+                  ) : sortedRecords.length === 0 ? (
                     <tr>
                       <td colSpan={selectedAccount === "all" ? 10 : 9} className="py-12 text-center text-slate-400">
                         <p className="font-semibold text-slate-300">Tidak ada data transaksi yang sesuai</p>
                       </td>
                     </tr>
                   ) : (
-                    records.map((r, index) => {
+                    sortedRecords.map((r, index) => {
                       const cat = CATEGORY_LABELS[r.category] || CATEGORY_LABELS.LAINNYA;
                       const isMasuk = r.type === "MASUK";
 
@@ -1009,20 +1199,101 @@ export default function FinancePage() {
             </div>
           </div>
 
+          {/* Active Sorting Banner RAB ala SteamDB */}
+          {rabSortConfig.key && (
+            <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs">
+              <span className="text-amber-400 font-semibold flex items-center gap-2">
+                <span>⚡ Diurutkan berdasarkan:</span>
+                <strong className="uppercase font-black">{rabSortConfig.key}</strong>
+                <span>({rabSortConfig.direction === "asc" ? "Terkecil ke Terbesar / A-Z" : "Terbesar ke Terkecil / Z-A"})</span>
+              </span>
+              <button
+                onClick={() => setRabSortConfig({ key: null, direction: "asc" })}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold cursor-pointer transition border border-slate-700"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Reset Urutan Default
+              </button>
+            </div>
+          )}
+
           {/* Main Table RAB */}
           <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-950 border-b border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   <tr>
-                    <th className="py-3.5 px-4 w-12 text-center">NO</th>
-                    {selectedRabMonth === "all" && <th className="py-3.5 px-3 w-28">BULAN</th>}
-                    <th className="py-3.5 px-4">NAMA BARANG / KEBUTUHAN</th>
-                    <th className="py-3.5 px-4 text-center w-16">QTY</th>
-                    <th className="py-3.5 px-4 text-center w-20">SATUAN</th>
-                    <th className="py-3.5 px-4 text-right">HARGA SATUAN</th>
-                    <th className="py-3.5 px-4 text-right font-black">JUMLAH TOTAL</th>
-                    <th className="py-3.5 px-4 text-center">SUMBER DANA / UANG</th>
+                    <SortableHeader
+                      label="NO"
+                      columnKey="seqNo"
+                      currentSortKey={rabSortConfig.key}
+                      sortDirection={rabSortConfig.direction}
+                      onSort={handleRabSort}
+                      align="center"
+                      className="w-12 text-center"
+                    />
+                    {selectedRabMonth === "all" && (
+                      <SortableHeader
+                        label="BULAN"
+                        columnKey="month"
+                        currentSortKey={rabSortConfig.key}
+                        sortDirection={rabSortConfig.direction}
+                        onSort={handleRabSort}
+                        className="w-28"
+                      />
+                    )}
+                    <SortableHeader
+                      label="NAMA BARANG / KEBUTUHAN"
+                      columnKey="name"
+                      currentSortKey={rabSortConfig.key}
+                      sortDirection={rabSortConfig.direction}
+                      onSort={handleRabSort}
+                    />
+                    <SortableHeader
+                      label="QTY"
+                      columnKey="qty"
+                      currentSortKey={rabSortConfig.key}
+                      sortDirection={rabSortConfig.direction}
+                      onSort={handleRabSort}
+                      align="center"
+                      className="text-center w-16"
+                    />
+                    <SortableHeader
+                      label="SATUAN"
+                      columnKey="unit"
+                      currentSortKey={rabSortConfig.key}
+                      sortDirection={rabSortConfig.direction}
+                      onSort={handleRabSort}
+                      align="center"
+                      className="text-center w-20"
+                    />
+                    <SortableHeader
+                      label="HARGA SATUAN"
+                      columnKey="unitPrice"
+                      currentSortKey={rabSortConfig.key}
+                      sortDirection={rabSortConfig.direction}
+                      onSort={handleRabSort}
+                      align="right"
+                      className="text-right"
+                    />
+                    <SortableHeader
+                      label="JUMLAH TOTAL"
+                      columnKey="totalPrice"
+                      currentSortKey={rabSortConfig.key}
+                      sortDirection={rabSortConfig.direction}
+                      onSort={handleRabSort}
+                      align="right"
+                      className="text-right font-black"
+                    />
+                    <SortableHeader
+                      label="SUMBER DANA"
+                      columnKey="fundedBy"
+                      currentSortKey={rabSortConfig.key}
+                      sortDirection={rabSortConfig.direction}
+                      onSort={handleRabSort}
+                      align="center"
+                      className="text-center"
+                    />
                     <th className="py-3.5 px-4">KETERANGAN</th>
                     <th className="py-3.5 px-4 w-14 text-center">AKSI</th>
                   </tr>
@@ -1035,14 +1306,14 @@ export default function FinancePage() {
                         <p>Memuat rencana anggaran biaya...</p>
                       </td>
                     </tr>
-                  ) : rabItems.length === 0 ? (
+                  ) : sortedRabItems.length === 0 ? (
                     <tr>
                       <td colSpan={10} className="py-12 text-center text-slate-400">
                         <p className="font-semibold text-slate-300">Tidak ada item RAB yang sesuai</p>
                       </td>
                     </tr>
                   ) : (
-                    rabItems.map((r, index) => (
+                    sortedRabItems.map((r, index) => (
                       <tr key={r.id} className="hover:bg-slate-800/40 transition group">
                         <td className="py-3 px-4 text-center text-xs font-mono text-slate-400">
                           {r.seqNo ?? index + 1}
