@@ -669,8 +669,8 @@ export default function StockManagementPage() {
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Manajemen Stok & Inventaris</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h1 className="text-2xl font-black text-stone-900 dark:text-white tracking-tight">Manajemen Stok & Inventaris</h1>
+          <p className="text-xs text-stone-600 dark:text-stone-300 mt-0.5">
             Kelola stok bahan baku booth, lakukan restock, catat stock opname fisik, serta pantau stok produk jadi
           </p>
         </div>
@@ -713,19 +713,19 @@ export default function StockManagementPage() {
       </div>
 
       {/* Main Tabs (3 Tabs: Inventory Bahan Baku, Stock Opname, Produk Jadi) */}
-      <div className="flex gap-2 border-b border-slate-200 overflow-x-auto no-scrollbar">
+      <div className="flex gap-2 border-b border-slate-200 dark:border-stone-800 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab("raw_materials")}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer shrink-0 ${
             activeTab === "raw_materials"
-              ? "border-amber-500 text-amber-600 bg-amber-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-500/10 rounded-t-xl"
+              : "border-transparent text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
           }`}
         >
           <Layers className="h-4 w-4" />
           <span>Inventory Bahan Baku ({rawMaterialsData.totalCount})</span>
           {rawMaterialsData.lowStockCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-100 text-rose-800 font-bold">
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 font-bold border border-rose-200 dark:border-rose-800">
               {rawMaterialsData.lowStockCount} Menipis
             </span>
           )}
@@ -735,8 +735,8 @@ export default function StockManagementPage() {
           onClick={() => setActiveTab("stock_opname")}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer shrink-0 ${
             activeTab === "stock_opname"
-              ? "border-amber-500 text-amber-600 bg-amber-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-500/10 rounded-t-xl"
+              : "border-transparent text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
           }`}
         >
           <ClipboardCheck className="h-4 w-4" />
@@ -747,8 +747,8 @@ export default function StockManagementPage() {
           onClick={() => setActiveTab("products")}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer shrink-0 ${
             activeTab === "products"
-              ? "border-amber-500 text-amber-600 bg-amber-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-500/10 rounded-t-xl"
+              : "border-transparent text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
           }`}
         >
           <Boxes className="h-4 w-4" />
@@ -937,19 +937,19 @@ export default function StockManagementPage() {
 
           {/* Banner Stok Menipis & Tombol WA Langsung */}
           {rawMaterialsData.lowStockCount > 0 && (
-            <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-emerald-500/15 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div className="p-4 sm:p-5 rounded-3xl bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-xs">
                   <AlertTriangle className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                  <h3 className="text-sm font-black text-stone-900 dark:text-amber-200 flex items-center gap-2">
                     <span>{rawMaterialsData.lowStockCount} Bahan Baku Mencapai Batas Kritis!</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
                       Perlu Restock
                     </span>
                   </h3>
-                  <p className="text-xs text-slate-600 mt-0.5">
+                  <p className="text-xs text-stone-600 dark:text-stone-300 mt-0.5">
                     Stok saat ini sudah di bawah batas minimum. Buat format rekap pesanan dan kirim langsung ke WhatsApp.
                   </p>
                 </div>

@@ -258,20 +258,20 @@ export default function SettingsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Pengaturan & Identitas Toko</h1>
-        <p className="text-xs text-slate-500 mt-0.5">
+        <h1 className="text-2xl font-black text-stone-900 dark:text-white tracking-tight">Pengaturan & Identitas Toko</h1>
+        <p className="text-xs text-stone-600 dark:text-stone-300 mt-0.5">
           Ubah logo brand bisnis, nama usaha, kontak booth, serta kelola akun kasir dan staf shift
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-200">
+      <div className="flex gap-2 border-b border-slate-200 dark:border-stone-800">
         <button
           onClick={() => setActiveTab("profile")}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer ${
             activeTab === "profile"
-              ? "border-amber-500 text-amber-600 bg-amber-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-500/10 rounded-t-xl"
+              : "border-transparent text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
           }`}
         >
           <Building2 className="h-4 w-4" />
@@ -282,13 +282,13 @@ export default function SettingsPage() {
           onClick={() => setActiveTab("employees")}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer ${
             activeTab === "employees"
-              ? "border-amber-500 text-amber-600 bg-amber-50/50 rounded-t-xl"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-500/10 rounded-t-xl"
+              : "border-transparent text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
           }`}
         >
           <Users className="h-4 w-4" />
           <span>Manajemen Staf & Kasir</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-stone-800 text-slate-700 dark:text-stone-200 font-bold">
             {employees.length}
           </span>
         </button>

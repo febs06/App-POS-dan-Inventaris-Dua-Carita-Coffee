@@ -201,10 +201,10 @@ export default function SuppliersPage() {
               <Truck className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-black text-stone-900 dark:text-white tracking-tight">
                 Master Supplier & Pengadaan
               </h1>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-stone-600 dark:text-stone-300">
                 Kelola data vendor, katalog harga bahan baku, packaging, dan riwayat fluktuasi harga
               </p>
             </div>
@@ -235,7 +235,7 @@ export default function SuppliersPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200">
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-stone-800">
         <button
           onClick={() => {
             setActiveTab("suppliers");
@@ -243,8 +243,8 @@ export default function SuppliersPage() {
           }}
           className={`pb-3 px-3 text-xs font-bold transition border-b-2 flex items-center gap-2 cursor-pointer ${
             activeTab === "suppliers"
-              ? "border-amber-500 text-amber-600"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-amber-500 text-amber-600 dark:text-amber-400"
+              : "border-transparent text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
           }`}
         >
           <Building2 className="h-4 w-4" />
@@ -261,8 +261,8 @@ export default function SuppliersPage() {
           }}
           className={`pb-3 px-3 text-xs font-bold transition border-b-2 flex items-center gap-2 cursor-pointer ${
             activeTab === "items"
-              ? "border-amber-500 text-amber-600"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-amber-500 text-amber-600 dark:text-amber-400"
+              : "border-transparent text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white"
           }`}
         >
           <Package className="h-4 w-4" />

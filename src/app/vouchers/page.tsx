@@ -148,8 +148,8 @@ export default function VouchersPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Voucher & Diskon Promo</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h1 className="text-2xl font-black text-stone-900 dark:text-white tracking-tight">Voucher & Diskon Promo</h1>
+          <p className="text-xs text-stone-600 dark:text-stone-300 mt-0.5">
             Atur kupon promo untuk transaksi kasir booth atau pre-order WhatsApp
           </p>
         </div>

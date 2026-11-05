@@ -440,8 +440,8 @@ export default function ProductsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Produk & Kategori</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h1 className="text-2xl font-black text-stone-900 dark:text-white tracking-tight">Produk & Kategori</h1>
+          <p className="text-xs text-stone-600 dark:text-stone-300 mt-0.5">
             Kelola daftar menu makanan, minuman booth, harga jual, HPP/modal, dan kategori
           </p>
         </div>
@@ -450,7 +450,7 @@ export default function ProductsPage() {
           {activeTab === "products" ? (
             <button
               onClick={handleOpenNewProduct}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-md transition"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 font-black text-xs shadow-md transition cursor-pointer"
             >
               <PlusCircle className="h-4 w-4" />
               Tambah Menu Baru
@@ -458,7 +458,7 @@ export default function ProductsPage() {
           ) : (
             <button
               onClick={handleOpenNewCategory}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#5c3826] hover:bg-[#46291a] text-white font-bold text-xs shadow-md transition cursor-pointer"
             >
               <PlusCircle className="h-4 w-4" />
               Tambah Kategori
@@ -468,13 +468,13 @@ export default function ProductsPage() {
       </div>
 
       {/* Tabs Switcher */}
-      <div className="flex items-center gap-2 border-b border-[#e7ded5] dark:border-[#2e231d] pb-2">
+      <div className="flex items-center gap-2 border-b border-stone-300 dark:border-stone-700 pb-2">
         <button
           onClick={() => setActiveTab("products")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
             activeTab === "products"
               ? "bg-[#5c3826] text-white shadow-xs"
-              : "text-stone-600 dark:text-stone-400 hover:bg-[#ede5dc] dark:hover:bg-[#2e231d]"
+              : "text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-800"
           }`}
         >
           <UtensilsCrossed className="h-3.5 w-3.5" />
@@ -486,7 +486,7 @@ export default function ProductsPage() {
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
             activeTab === "categories"
               ? "bg-[#5c3826] text-white shadow-xs"
-              : "text-stone-600 dark:text-stone-400 hover:bg-[#ede5dc] dark:hover:bg-[#2e231d]"
+              : "text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-800"
           }`}
         >
           <Layers className="h-3.5 w-3.5" />
@@ -498,13 +498,13 @@ export default function ProductsPage() {
       {activeTab === "products" && (
         <div className="space-y-4">
           {/* Filter Bar */}
-          <div className="bg-white dark:bg-[#1c1512] rounded-2xl border border-[#e7ded5] dark:border-[#2e231d] p-4 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-xs">
+          <div className="bg-white rounded-2xl border border-stone-200 p-4 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-xs">
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="text-xs font-bold text-stone-600 dark:text-stone-400">Filter Kategori:</span>
+              <span className="text-xs font-bold text-stone-700">Filter Kategori:</span>
               <select
                 value={selectedCatFilter}
                 onChange={(e) => setSelectedCatFilter(e.target.value)}
-                className="text-xs font-semibold bg-white dark:bg-[#251b16] text-stone-900 dark:text-stone-100 border border-[#d8ccc0] dark:border-[#382b23] rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5c3826]"
+                className="text-xs font-bold bg-white text-stone-900 border border-stone-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5c3826]"
               >
                 <option value="all">Semua Kategori</option>
                 {categories.map((c) => (
@@ -522,73 +522,73 @@ export default function ProductsPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari nama menu..."
-                className="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl bg-white dark:bg-[#251b16] text-stone-900 dark:text-stone-100 placeholder:text-stone-400 border border-[#d8ccc0] dark:border-[#382b23] focus:outline-none focus:ring-2 focus:ring-[#5c3826]"
+                className="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl bg-white text-stone-900 placeholder:text-stone-400 border border-stone-300 focus:outline-none focus:ring-2 focus:ring-[#5c3826]"
               />
             </div>
           </div>
 
-          {/* Product Table */}
-          <div className="bg-white dark:bg-[#1c1512] rounded-2xl border border-[#e7ded5] dark:border-[#2e231d] shadow-xs overflow-hidden">
+          {/* Product Table - High Contrast White Card */}
+          <div className="bg-white rounded-2xl border border-stone-200/90 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-[#f4eee6] dark:bg-[#251b16] text-stone-700 dark:text-stone-300 font-bold border-b border-[#e7ded5] dark:border-[#2e231d]">
+                <thead className="bg-[#f7efe6] text-stone-800 font-bold border-b border-stone-200">
                   <tr>
-                    <th className="py-3 px-4">Menu & Foto</th>
-                    <th className="py-3 px-3">Kategori</th>
-                    <th className="py-3 px-3">Harga Jual</th>
-                    <th className="py-3 px-3">Modal (HPP)</th>
-                    <th className="py-3 px-3">Margin Laba</th>
-                    <th className="py-3 px-3">Stok Jadi</th>
-                    <th className="py-3 px-3">Bahan Baku & Kesiapan</th>
-                    <th className="py-3 px-3">Status</th>
-                    <th className="py-3 px-4 text-right">Aksi</th>
+                    <th className="py-3.5 px-4 font-black">Menu & Foto</th>
+                    <th className="py-3.5 px-3 font-black">Kategori</th>
+                    <th className="py-3.5 px-3 font-black">Harga Jual</th>
+                    <th className="py-3.5 px-3 font-black">Modal (HPP)</th>
+                    <th className="py-3.5 px-3 font-black">Margin Laba</th>
+                    <th className="py-3.5 px-3 font-black">Stok Jadi</th>
+                    <th className="py-3.5 px-3 font-black">Bahan Baku & Kesiapan</th>
+                    <th className="py-3.5 px-3 font-black">Status</th>
+                    <th className="py-3.5 px-4 text-right font-black">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#f0e8df] dark:divide-[#2e231d]">
+                <tbody className="divide-y divide-stone-100 bg-white">
                   {filteredProducts.map((p) => {
                     const profit = p.price - p.cost;
                     const margin = p.price > 0 ? Math.round((profit / p.price) * 100) : 0;
 
                     return (
-                      <tr key={p.id} className="hover:bg-[#faf8f5]/80 dark:hover:bg-[#2e231d]/50 transition">
-                        <td className="py-3 px-4">
+                      <tr key={p.id} className="hover:bg-[#faf8f5] transition">
+                        <td className="py-3.5 px-4">
                           <div className="flex items-center gap-3">
                             {p.imageUrl ? (
                               <img
                                 src={p.imageUrl}
                                 alt={p.name}
-                                className="h-10 w-10 rounded-lg object-cover bg-stone-100 dark:bg-stone-800"
+                                className="h-10 w-10 rounded-lg object-cover bg-stone-100 border border-stone-200"
                               />
                             ) : (
-                              <div className="h-10 w-10 rounded-lg bg-[#f3eae0] dark:bg-[#34241c] text-[#5c3826] dark:text-amber-300 font-bold flex items-center justify-center text-xs">
+                              <div className="h-10 w-10 rounded-lg bg-[#f3eae0] text-[#5c3826] font-black flex items-center justify-center text-xs border border-[#e2d0bd]">
                                 {p.name.slice(0, 2).toUpperCase()}
                               </div>
                             )}
                             <div>
-                              <div className="font-bold text-sm text-stone-900 dark:text-stone-100">{p.name}</div>
-                              <div className="text-xs text-stone-500 dark:text-stone-400">Satuan: {p.unit}</div>
+                              <div className="font-black text-sm text-stone-900">{p.name}</div>
+                              <div className="text-xs font-semibold text-stone-500">Satuan: {p.unit}</div>
                             </div>
                           </div>
                         </td>
 
-                        <td className="py-3 px-3 text-stone-700 dark:text-stone-300 font-semibold">
+                        <td className="py-3 px-3 text-stone-800 font-bold">
                           {p.category?.name}
                         </td>
 
                         <td className="py-3 px-3">
-                          <div className="font-black text-sm text-[#5c3826] dark:text-amber-300 tabular-nums">{formatRupiah(p.price)}</div>
+                          <div className="font-black text-sm text-[#5c3826] tabular-nums">{formatRupiah(p.price)}</div>
                           {p.variants && p.variants.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1 max-w-[200px]">
+                            <div className="flex flex-wrap gap-1 mt-1 max-w-[210px]">
                               {p.variants
                                 .filter((v: any) => v.isActive)
                                 .map((v: any) => (
                                   <span
                                     key={v.id || `${v.packaging}-${v.size}`}
-                                    className="inline-flex items-center text-xs font-semibold bg-[#fbf5ee] dark:bg-[#251b16] text-[#5c3826] dark:text-amber-300 border border-[#e7ded5] dark:border-[#382b23] px-2 py-0.5 rounded-md shadow-2xs tabular-nums"
+                                    className="inline-flex items-center text-xs font-bold bg-[#fdf6ee] text-[#5c3826] border border-[#e8d5c4] px-2 py-0.5 rounded-md shadow-2xs tabular-nums"
                                     title={`${v.packaging} ${v.size}: Jual ${formatRupiah(v.price)} | Modal ${formatRupiah(v.cost)}`}
                                   >
-                                    <span className="font-bold mr-1">{v.size}</span>
-                                    <span className="text-xs text-amber-700 dark:text-amber-400">{formatRupiah(v.price)}</span>
+                                    <span className="font-black text-stone-900 mr-1">{v.size}</span>
+                                    <span className="text-xs text-[#5c3826] font-bold">{formatRupiah(v.price)}</span>
                                   </span>
                                 ))}
                             </div>
@@ -596,19 +596,19 @@ export default function ProductsPage() {
                         </td>
 
                         <td className="py-3 px-3">
-                          <div className="font-black text-sm text-stone-900 dark:text-stone-100 tabular-nums">{formatRupiah(p.cost)}</div>
+                          <div className="font-black text-sm text-stone-900 tabular-nums">{formatRupiah(p.cost)}</div>
                           {p.variants && p.variants.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1 max-w-[200px]">
+                            <div className="flex flex-wrap gap-1 mt-1 max-w-[210px]">
                               {p.variants
                                 .filter((v: any) => v.isActive)
                                 .map((v: any) => (
                                   <span
                                     key={v.id || `${v.packaging}-${v.size}`}
-                                    className="inline-flex items-center text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md shadow-2xs tabular-nums"
+                                    className="inline-flex items-center text-xs font-bold bg-emerald-50 text-emerald-950 border border-emerald-300 px-2 py-0.5 rounded-md shadow-2xs tabular-nums"
                                     title={`${v.packaging} ${v.size}: Modal ${formatRupiah(v.cost)} (Hitung: ${formatRupiah(v.calculatedHpp ?? v.cost)})`}
                                   >
-                                    <span className="font-bold mr-1">{v.size}:</span>
-                                    <span className="text-xs text-emerald-700 dark:text-emerald-400 font-bold">{formatRupiah(v.cost)}</span>
+                                    <span className="font-black text-emerald-950 mr-1">{v.size}:</span>
+                                    <span className="text-xs text-emerald-800 font-bold">{formatRupiah(v.cost)}</span>
                                   </span>
                                 ))}
                             </div>
@@ -616,22 +616,22 @@ export default function ProductsPage() {
                         </td>
 
                         <td className="py-3 px-3">
-                          <span className="font-black text-xs text-emerald-700 dark:text-emerald-400 tabular-nums">
+                          <span className="font-black text-sm text-emerald-800 tabular-nums">
                             {formatRupiah(profit)}
                           </span>{" "}
-                          <span className="text-xs text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded-md font-bold tabular-nums">
+                          <span className="text-xs text-emerald-900 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded-md font-black tabular-nums">
                             +{margin}%
                           </span>
                         </td>
 
                         <td className="py-3 px-3">
                           <span
-                            className={`font-bold text-xs px-2.5 py-1 rounded-lg tabular-nums ${
+                            className={`font-black text-xs px-2.5 py-1 rounded-lg border tabular-nums ${
                               p.stock <= 0
-                                ? "bg-rose-100 text-rose-800"
+                                ? "bg-rose-100 text-rose-900 border-rose-300"
                                 : p.stock <= 10
-                                ? "bg-amber-100 text-amber-800"
-                                : "bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200"
+                                ? "bg-amber-100 text-amber-950 border-amber-300"
+                                : "bg-stone-100 text-stone-900 border-stone-200"
                             }`}
                           >
                             {p.stock} {p.unit}
@@ -649,7 +649,7 @@ export default function ProductsPage() {
 
                             if (!hasVariantRecipes) {
                               return (
-                                <span className="text-xs text-stone-400 italic">
+                                <span className="text-xs text-stone-500 font-semibold italic">
                                   Stok Siap Jual
                                 </span>
                               );
@@ -664,17 +664,17 @@ export default function ProductsPage() {
                             const isPartial = activeVariants.length > 0 && availableVariants.length > 0 && availableVariants.length < activeVariants.length;
 
                             return (
-                              <div className="space-y-1 max-w-[200px]">
+                              <div className="space-y-1 max-w-[210px]">
                                 {isAllReady ? (
-                                  <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
+                                  <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-900 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-md">
                                     ✓ Semua Varian Siap
                                   </span>
                                 ) : isPartial ? (
-                                  <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 px-2 py-0.5 rounded-md">
+                                  <span className="inline-flex items-center gap-1 text-xs font-black text-amber-950 bg-amber-100 border border-amber-400 px-2.5 py-0.5 rounded-md">
                                     ⚠️ Sebagian Habis ({availableVariants.length}/{activeVariants.length})
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 text-xs font-black text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 px-2 py-0.5 rounded-md">
+                                  <span className="inline-flex items-center gap-1 text-xs font-black text-rose-900 bg-rose-100 border border-rose-400 px-2.5 py-0.5 rounded-md">
                                     ⚠️ Bahan Habis
                                   </span>
                                 )}
@@ -688,10 +688,10 @@ export default function ProductsPage() {
                                     return (
                                       <span
                                         key={v.id || `${v.packaging}-${v.size}`}
-                                        className={`text-xs px-1.5 py-0.5 rounded-md font-semibold border tabular-nums ${
+                                        className={`text-xs px-2 py-0.5 rounded-md font-bold border tabular-nums ${
                                           isVarReady
-                                            ? "bg-[#faf8f5] dark:bg-[#251b16] text-stone-700 dark:text-stone-300 border-[#e7ded5] dark:border-[#382b23]"
-                                            : "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 font-bold"
+                                            ? "bg-stone-50 text-stone-800 border-stone-300"
+                                            : "bg-rose-50 text-rose-900 border-rose-300 font-black"
                                         }`}
                                         title={
                                           isVarReady
@@ -711,12 +711,12 @@ export default function ProductsPage() {
 
                         <td className="py-3 px-3">
                           {p.isActive ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg">
-                              <CheckCircle2 className="h-3.5 w-3.5" /> Aktif
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-900 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Aktif
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-stone-500 bg-stone-100 dark:bg-stone-800 px-2.5 py-1 rounded-lg">
-                              <XCircle className="h-3.5 w-3.5" /> Nonaktif
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-stone-600 bg-stone-100 border border-stone-200 px-2.5 py-1 rounded-lg">
+                              <XCircle className="h-3.5 w-3.5 text-stone-400" /> Nonaktif
                             </span>
                           )}
                         </td>
@@ -725,14 +725,14 @@ export default function ProductsPage() {
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => handleOpenEditProduct(p)}
-                              className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-[#ede5dc] dark:hover:bg-[#2e231d] cursor-pointer"
+                              className="p-1.5 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-100 cursor-pointer"
                               title="Edit Menu"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => handleDeleteProduct(p.id)}
-                              className="p-1.5 rounded-lg text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
+                              className="p-1.5 rounded-lg text-stone-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
                               title="Hapus Menu"
                             >
                               <Trash2 className="h-3.5 w-3.5" />

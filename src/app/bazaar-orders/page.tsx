@@ -177,11 +177,11 @@ export default function BazaarOrdersPage() {
             </span>
             <span className="text-xs text-slate-400">&bull; Auto-refresh aktif</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
+          <h1 className="text-xl sm:text-2xl font-black text-stone-900 dark:text-white tracking-tight flex items-center gap-2.5">
             <ShoppingBag className="h-6 w-6 text-amber-600" />
             <span>Pesanan Bazaar Hari Ini</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-stone-600 dark:text-stone-300 mt-1">
             Antrean pesanan booth live, status penyajian barista, dan cetak ulang struk tanpa tercampur histori pembukuan umum
           </p>
         </div>
