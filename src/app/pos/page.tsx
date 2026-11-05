@@ -325,19 +325,6 @@ export default function PosPage() {
 
   // Group products by base name for fast, clean, organized cashier menu
   const displayProducts = useMemo(() => {
-    // If user is searching specific term, show direct matching products
-    if (searchQuery.trim()) {
-      return filteredProducts.map((p) => ({
-        ...p,
-        displayName: p.name,
-        isGrouped: false,
-        variantCount: 1,
-        minPrice: p.price,
-        maxPrice: p.price,
-        allVariants: [p],
-      }));
-    }
-
     // Group by base name (e.g. Aren Coffee Milk, Choco Blend Coffee, etc.)
     const groups = new Map<string, Product[]>();
     filteredProducts.forEach((p) => {
@@ -349,17 +336,36 @@ export default function PosPage() {
     return Array.from(groups.entries()).map(([baseName, variants]) => {
       const sorted = [...variants].sort((a, b) => a.price - b.price);
       const rep = sorted[0];
-      return {
+
+      // Collect all active ProductVariant across these products
+      const allActiveVariants = variants.flatMap((p) =>
+        (p.variants || []).filter((v: any) => v.isActive)
+      );
+
+      const hasMultipleVariants = allActiveVariants.length > 1;
+      const allPrices = hasMultipleVariants
+        ? allActiveVariants.map((v: any) => v.price)
+        : [rep.price];
+      const minPrice = Math.min(...allPrices);
+      const maxPrice = Math.max(...allPrices);
+
+      // Merge variants into the representative product so the modal gets everything
+      const mergedProduct: Product = {
         ...rep,
+        variants: allActiveVariants.length > 0 ? allActiveVariants : rep.variants,
+      };
+
+      return {
+        ...mergedProduct,
         displayName: baseName,
-        isGrouped: variants.length > 1,
-        variantCount: variants.length,
-        minPrice: sorted[0].price,
-        maxPrice: sorted[sorted.length - 1].price,
+        isGrouped: hasMultipleVariants,
+        variantCount: allActiveVariants.length,
+        minPrice,
+        maxPrice,
         allVariants: variants,
       };
     });
-  }, [filteredProducts, searchQuery]);
+  }, [filteredProducts]);
 
   // Open Checkout
   const handleOpenCheckout = () => {
