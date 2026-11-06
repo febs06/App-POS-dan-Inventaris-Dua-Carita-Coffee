@@ -98,7 +98,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) {
-      setError("Username / User ID wajib diisi");
+      setError("Email atau username wajib diisi");
       return;
     }
     if (!password) {
@@ -122,7 +122,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Username atau password salah");
+        setError(data.error || "Email atau password anda salah");
         return;
       }
 
@@ -211,7 +211,7 @@ export default function LoginPage() {
               Masuk ke Sistem
             </h2>
             <p className="text-xs text-slate-400">
-              Silakan masukkan Username dan Password untuk mengakses sistem kasir & inventaris booth
+              Silakan masukkan Email / Username dan Password untuk mengakses sistem kasir & inventaris booth
             </p>
           </div>
 
@@ -223,10 +223,10 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Input Username */}
+            {/* Input Email / Username */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-300 block">
-                Username / User ID
+                Email / Username
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -243,7 +243,7 @@ export default function LoginPage() {
                     setUsername(e.target.value);
                     if (error) setError("");
                   }}
-                  placeholder="Contoh: febriansyah / kasir1"
+                  placeholder="Contoh: febriansyah / kasir1 / nama@email.com"
                   className="w-full pl-10 pr-4 py-3 rounded-2xl bg-slate-950/80 border border-slate-700/80 text-white placeholder:text-slate-500 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
                 />
               </div>

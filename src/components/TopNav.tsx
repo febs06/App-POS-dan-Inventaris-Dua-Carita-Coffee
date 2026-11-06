@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, ShoppingCart, PlusCircle, AlertTriangle, Calendar, UserCheck, Lock } from "lucide-react";
-import CashierLoginModal from "./CashierLoginModal";
 
 interface TopNavProps {
   onToggleSidebar: () => void;
@@ -18,14 +17,18 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
     name: string;
     role: string;
   } | null>(null);
-  const [isCashierModalOpen, setIsCashierModalOpen] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     try {
+      sessionStorage.removeItem("active_cashier");
       localStorage.removeItem("active_cashier");
+      document.cookie = "session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      await fetch("/api/employees/logout", { method: "POST" }).catch(() => {});
       window.dispatchEvent(new Event("cashier-updated"));
       router.push("/login");
-    } catch (e) {}
+    } catch (e) {
+      router.push("/login");
+    }
   };
 
   const fetchActiveEvent = () => {
@@ -203,9 +206,9 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
           {/* Active Cashier Shift Badge */}
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setIsCashierModalOpen(true)}
+              onClick={handleLogout}
               className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-[#d8ccc0] dark:border-[#382b23] bg-[#f5ede4] dark:bg-[#251b16] hover:bg-[#ede3d8] dark:hover:bg-[#2f221c] text-xs text-stone-800 dark:text-stone-200 transition cursor-pointer shrink-0"
-              title="Klik untuk ganti shift kasir"
+              title="Ganti Akun (Keluar ke Layar Login)"
             >
               <UserCheck className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
               <span className="hidden md:inline text-stone-500 dark:text-stone-400 font-medium">Kasir:</span>
@@ -239,16 +242,6 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
           </Link>
         </div>
       </header>
-
-
-      {/* Cashier Shift Modal */}
-      {isCashierModalOpen && (
-        <CashierLoginModal
-          isOpen={isCashierModalOpen}
-          onClose={() => setIsCashierModalOpen(false)}
-          onSuccess={(emp) => setActiveCashier(emp)}
-        />
-      )}
     </>
   );
 }

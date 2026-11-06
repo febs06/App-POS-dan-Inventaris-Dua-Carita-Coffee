@@ -26,7 +26,6 @@ import {
   Sparkles,
   ChevronRight,
 } from "lucide-react";
-import CashierLoginModal from "./CashierLoginModal";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -95,8 +94,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   } | null>(null);
 
   const isOwner = activeCashier?.role === "OWNER" || activeCashier?.role === "MANAGER";
-
-  const [isCashierModalOpen, setIsCashierModalOpen] = useState(false);
 
   // Sync mode with current pathname or localStorage
   useEffect(() => {
@@ -179,13 +176,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     try {
       sessionStorage.removeItem("active_cashier");
       localStorage.removeItem("active_cashier");
+      document.cookie = "session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      await fetch("/api/employees/logout", { method: "POST" }).catch(() => {});
       window.dispatchEvent(new Event("cashier-updated"));
       router.push("/login");
-    } catch {}
+    } catch {
+      router.push("/login");
+    }
   };
 
   useEffect(() => {
@@ -435,9 +436,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
 
             <button
-              onClick={() => setIsCashierModalOpen(true)}
+              onClick={handleLogout}
               className="text-xs font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-400/10 px-2 py-1 rounded-lg transition shrink-0 cursor-pointer"
-              title="Ganti Kasir"
+              title="Ganti Akun (Keluar ke Layar Login)"
             >
               Ganti
             </button>
@@ -452,16 +453,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
         </div>
       </aside>
-
-      {/* Cashier Switch Modal */}
-      <CashierLoginModal
-        isOpen={isCashierModalOpen}
-        onClose={() => setIsCashierModalOpen(false)}
-        onSuccess={() => {
-          loadCashier();
-          setIsCashierModalOpen(false);
-        }}
-      />
     </>
   );
 }

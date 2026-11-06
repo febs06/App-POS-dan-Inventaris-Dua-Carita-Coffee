@@ -9,34 +9,44 @@ export async function POST(req: Request) {
     const inputPassword = password !== undefined ? password : pin;
 
     if (!username && !id) {
-      return NextResponse.json({ error: "Username / User ID wajib dimasukkan" }, { status: 400 });
+      return NextResponse.json({ error: "Email atau username wajib dimasukkan" }, { status: 400 });
     }
 
     if (!inputPassword) {
       return NextResponse.json({ error: "Password wajib dimasukkan" }, { status: 400 });
     }
 
+    // Pembersihan input username / email (mendukung format @username atau username langsung)
+    const rawUser = String(username || "").trim();
+    const cleanUsername = rawUser.startsWith("@") ? rawUser.substring(1).toLowerCase() : rawUser.toLowerCase();
+
     let employee = null;
-    if (username) {
+    if (cleanUsername) {
       employee = await prisma.employee.findUnique({
-        where: { username: username.toLowerCase().trim() },
+        where: { username: cleanUsername },
       });
     } else if (id) {
       employee = await prisma.employee.findUnique({ where: { id } });
     }
 
-    if (!employee) {
-      return NextResponse.json({ error: "Username atau akun tidak ditemukan" }, { status: 404 });
-    }
+    // Pesan error generic untuk mencegah User Enumeration attack
+    const GENERIC_AUTH_ERROR = "Email atau password anda salah";
 
-    if (!employee.isActive) {
-      return NextResponse.json({ error: "Akun ini sedang dinonaktifkan oleh admin" }, { status: 403 });
+    if (!employee) {
+      return NextResponse.json({ error: GENERIC_AUTH_ERROR }, { status: 401 });
     }
 
     // Verify Password / PIN against pinHash or legacy plaintext pin
     const isMatch = verifyPin(String(inputPassword).trim(), employee.pinHash || employee.pin);
     if (!isMatch) {
-      return NextResponse.json({ error: "Password yang Anda masukkan salah" }, { status: 401 });
+      return NextResponse.json({ error: GENERIC_AUTH_ERROR }, { status: 401 });
+    }
+
+    if (!employee.isActive) {
+      return NextResponse.json(
+        { error: "Akun ini sedang dinonaktifkan oleh admin. Silakan hubungi Owner." },
+        { status: 403 }
+      );
     }
 
     // Auto-migrate legacy plaintext PIN to pinHash if not yet migrated

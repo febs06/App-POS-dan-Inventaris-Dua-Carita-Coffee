@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { hashPin } from "@/lib/auth";
+import { hashPin, verifySessionToken } from "@/lib/auth";
 
 export async function GET() {
   try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("session_token")?.value;
+    const sessionUser = verifySessionToken(token);
+
+    // Kasir dilarang melihat daftar seluruh staf / akun di sistem
+    if (sessionUser && sessionUser.role === "KASIR") {
+      return NextResponse.json({ error: "Akses ditolak: Staf kasir tidak diizinkan melihat daftar akun" }, { status: 403 });
+    }
+
     const employees = await prisma.employee.findMany({
       orderBy: { createdAt: "asc" },
       select: {
