@@ -27,8 +27,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         if (!sessionActive) {
           setIsAuthenticated(false);
           router.replace("/login");
-        } else {
-          setIsAuthenticated(true);
+          return;
+        }
+
+        const cashier = JSON.parse(sessionActive);
+        setIsAuthenticated(true);
+
+        // RBAC Route Guard:
+        // Role KASIR atau non-owner DILARANG keras mengakses modul admin, keuangan, stok, dan pengaturan
+        const isOwner = cashier?.role === "OWNER" || cashier?.role === "MANAGER";
+        const KASIR_ALLOWED_ROUTES = ["/pos", "/bazaar-orders", "/po"];
+
+        if (!isOwner && !KASIR_ALLOWED_ROUTES.includes(pathname)) {
+          console.warn(`[RBAC] Akses Ditolak: Role "${cashier?.role}" mencoba mengakses "${pathname}". Mengalihkan ke /pos.`);
+          router.replace("/pos");
         }
       } catch (e) {
         setIsAuthenticated(false);

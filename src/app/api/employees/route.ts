@@ -98,6 +98,22 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "ID karyawan dibutuhkan" }, { status: 400 });
     }
 
+    // Safety check: Pastikan tidak menonaktifkan atau mengubah role satu-satunya Owner aktif di sistem
+    if (isActive === false || role === "KASIR") {
+      const targetEmp = await prisma.employee.findUnique({ where: { id } });
+      if (targetEmp?.role === "OWNER") {
+        const otherActiveOwners = await prisma.employee.count({
+          where: { role: "OWNER", isActive: true, NOT: { id } },
+        });
+        if (otherActiveOwners === 0) {
+          return NextResponse.json(
+            { error: "Satu-satunya akun Owner aktif tidak dapat dinonaktifkan atau diubah role-nya." },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     const updateData: any = {};
     if (name !== undefined) updateData.name = name.trim();
     if (username !== undefined) {

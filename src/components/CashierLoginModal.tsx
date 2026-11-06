@@ -19,6 +19,7 @@ interface CashierLoginModalProps {
 
 export default function CashierLoginModal({ isOpen, onClose, onSuccess }: CashierLoginModalProps) {
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [roleTab, setRoleTab] = useState<"KASIR" | "OWNER">("KASIR");
   const [selectedEmp, setSelectedEmp] = useState<Employee | null>(null);
   const [pin, setPin] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -42,14 +43,35 @@ export default function CashierLoginModal({ isOpen, onClose, onSuccess }: Cashie
       if (Array.isArray(data)) {
         const active = data.filter((e) => e.isActive);
         setEmployees(active);
-        if (active.length > 0) {
-          setSelectedEmp(active[0]);
+
+        const cashiers = active.filter((e) => e.role !== "OWNER");
+        const owners = active.filter((e) => e.role === "OWNER");
+
+        // Jika ada kasir, default tab kasir; jika belum ada kasir, buka tab owner
+        if (cashiers.length > 0) {
+          setRoleTab("KASIR");
+          setSelectedEmp(cashiers[0]);
+        } else if (owners.length > 0) {
+          setRoleTab("OWNER");
+          setSelectedEmp(owners[0]);
         }
       }
     } catch (err) {
       console.error("Failed to load employees:", err);
     } finally {
       setFetching(false);
+    }
+  };
+
+  const handleSelectTab = (tab: "KASIR" | "OWNER") => {
+    setRoleTab(tab);
+    setPin("");
+    setError("");
+    const filtered = employees.filter((e) => (tab === "OWNER" ? e.role === "OWNER" : e.role !== "OWNER"));
+    if (filtered.length > 0) {
+      setSelectedEmp(filtered[0]);
+    } else {
+      setSelectedEmp(null);
     }
   };
 
@@ -136,43 +158,102 @@ export default function CashierLoginModal({ isOpen, onClose, onSuccess }: Cashie
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-4">
+          {/* Role Segmented Tabs (Kasir vs Owner) */}
+          <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => handleSelectTab("KASIR")}
+              className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                roleTab === "KASIR"
+                  ? "bg-amber-500 text-slate-950 shadow-xs font-black"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <UserCheck className="h-3.5 w-3.5" />
+              <span>Staf Kasir ({employees.filter((e) => e.role !== "OWNER").length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectTab("OWNER")}
+              className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                roleTab === "OWNER"
+                  ? "bg-slate-900 text-white shadow-xs font-black"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Shield className="h-3.5 w-3.5 text-amber-400" />
+              <span>Owner / Admin ({employees.filter((e) => e.role === "OWNER").length})</span>
+            </button>
+          </div>
+
+          {/* Info Banner per Tab */}
+          {roleTab === "OWNER" ? (
+            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 text-[11px] flex items-center gap-2">
+              <Lock className="h-4 w-4 text-amber-600 shrink-0" />
+              <span>Memerlukan PIN Owner untuk otorisasi penuh akses keuangan, stok, dan pengaturan toko.</span>
+            </div>
+          ) : (
+            <div className="p-2 rounded-xl bg-slate-100 text-slate-600 text-[11px] flex items-center gap-2">
+              <UserCheck className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+              <span>Pilih staf kasir yang akan bertugas di shift booth saat ini.</span>
+            </div>
+          )}
+
           {/* Pilih Karyawan */}
           <div>
-            <label className="text-xs font-bold text-slate-600 block mb-2">Pilih Nama Staf / Kasir</label>
+            <label className="text-xs font-bold text-slate-600 block mb-2">
+              {roleTab === "OWNER" ? "Pilih Akun Owner / Admin" : "Pilih Nama Staf Kasir"}
+            </label>
             {fetching ? (
               <div className="text-xs text-slate-400 py-3 text-center">Memuat daftar staf...</div>
-            ) : employees.length === 0 ? (
-              <div className="text-xs text-rose-500 py-2">Belum ada data staf terdaftar.</div>
+            ) : employees.filter((e) => (roleTab === "OWNER" ? e.role === "OWNER" : e.role !== "OWNER")).length === 0 ? (
+              <div className="text-xs text-slate-500 py-3 text-center italic bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                {roleTab === "OWNER" ? "Tidak ada akun owner terdaftar" : "Belum ada akun kasir terdaftar"}
+              </div>
             ) : (
               <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
-                {employees.map((emp) => {
-                  const isSelected = selectedEmp?.id === emp.id;
-                  return (
-                    <button
-                      key={emp.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedEmp(emp);
-                        setPin("");
-                        setError("");
-                      }}
-                      className={`p-2.5 rounded-xl text-left border transition flex flex-col justify-between cursor-pointer ${
-                        isSelected
-                          ? "bg-amber-50 border-amber-500 text-amber-950 shadow-xs"
-                          : "bg-white border-slate-200 hover:border-slate-300 text-slate-700"
-                      }`}
-                    >
-                      <div className="font-bold text-xs truncate flex items-center justify-between">
-                        <span>{emp.name}</span>
-                        {isSelected && <Check className="h-3.5 w-3.5 text-amber-600" />}
-                      </div>
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase mt-1">
-                        {emp.role}
-                      </span>
-                    </button>
-                  );
-                })}
+                {employees
+                  .filter((e) => (roleTab === "OWNER" ? e.role === "OWNER" : e.role !== "OWNER"))
+                  .map((emp) => {
+                    const isSelected = selectedEmp?.id === emp.id;
+                    return (
+                      <button
+                        key={emp.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedEmp(emp);
+                          setPin("");
+                          setError("");
+                        }}
+                        className={`p-2.5 rounded-xl text-left border transition flex flex-col justify-between cursor-pointer ${
+                          isSelected
+                            ? roleTab === "OWNER"
+                              ? "bg-slate-900 border-slate-900 text-white shadow-xs"
+                              : "bg-amber-50 border-amber-500 text-amber-950 shadow-xs"
+                            : "bg-white border-slate-200 hover:border-slate-300 text-slate-700"
+                        }`}
+                      >
+                        <div className="font-bold text-xs truncate flex items-center justify-between">
+                          <span>{emp.name}</span>
+                          {isSelected && (
+                            <Check
+                              className={`h-3.5 w-3.5 ${
+                                roleTab === "OWNER" ? "text-amber-400" : "text-amber-600"
+                              }`}
+                            />
+                          )}
+                        </div>
+                        <span
+                          className={`text-[10px] font-semibold uppercase mt-1 ${
+                            isSelected && roleTab === "OWNER" ? "text-amber-300" : "text-slate-400"
+                          }`}
+                        >
+                          {emp.role}
+                        </span>
+                      </button>
+                    );
+                  })}
               </div>
             )}
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   Store,
   Upload,
@@ -24,7 +25,22 @@ import {
 } from "lucide-react";
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"profile" | "employees">("profile");
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("active_cashier") || localStorage.getItem("active_cashier");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setCurrentUser(parsed);
+        if (parsed.role === "KASIR") {
+          router.replace("/pos");
+        }
+      }
+    } catch {}
+  }, [router]);
 
   // Store Profile State
   const [storeName, setStoreName] = useState("");
@@ -253,6 +269,26 @@ export default function SettingsPage() {
       setSubmittingEmp(false);
     }
   };
+
+  if (currentUser?.role === "KASIR") {
+    return (
+      <div className="p-8 sm:p-12 text-center bg-white rounded-3xl border border-slate-200 shadow-sm space-y-4 max-w-lg mx-auto mt-10">
+        <div className="h-14 w-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-200">
+          <Lock className="h-7 w-7" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900 tracking-tight">Akses Terbatas: Khusus Owner / Admin</h2>
+        <p className="text-xs text-slate-600 leading-relaxed">
+          Akun kasir tidak diizinkan mengakses pengaturan identitas toko, data karyawan, atau mengganti password owner.
+        </p>
+        <button
+          onClick={() => router.push("/pos")}
+          className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition cursor-pointer"
+        >
+          Kembali ke Layar Kasir POS
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

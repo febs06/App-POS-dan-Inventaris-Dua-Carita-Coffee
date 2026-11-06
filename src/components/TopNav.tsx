@@ -137,33 +137,35 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
             <Menu className="h-4 w-4" />
           </button>
 
-          {/* Dual-Mode Quick Pill */}
-          <div className="hidden sm:flex items-center p-0.5 rounded-xl bg-[#ede5dc]/80 dark:bg-[#251b16] border border-[#d8ccc0] dark:border-[#382b23] text-xs font-bold shrink-0">
-            <button
-              type="button"
-              onClick={() => handleToggleMode("kasir")}
-              className={`px-3 py-1.5 rounded-lg transition cursor-pointer text-xs ${
-                appMode === "kasir"
-                  ? "bg-amber-500 text-stone-950 font-black shadow-xs"
-                  : "text-stone-600 hover:text-stone-950 dark:text-stone-400 dark:hover:text-white"
-              }`}
-              title="Beralih ke App Kasir Booth"
-            >
-              🎪 Kasir
-            </button>
-            <button
-              type="button"
-              onClick={() => handleToggleMode("inventaris")}
-              className={`px-3 py-1.5 rounded-lg transition cursor-pointer text-xs ${
-                appMode === "inventaris"
-                  ? "bg-amber-500 text-stone-950 font-black shadow-xs"
-                  : "text-stone-600 hover:text-stone-950 dark:text-stone-400 dark:hover:text-white"
-              }`}
-              title="Beralih ke App Inventaris & Back-Office"
-            >
-              🏢 Inventaris
-            </button>
-          </div>
+          {/* Dual-Mode Quick Pill (Hanya Tampil untuk Owner / Manager) */}
+          {(activeCashier?.role === "OWNER" || activeCashier?.role === "MANAGER") && (
+            <div className="hidden sm:flex items-center p-0.5 rounded-xl bg-[#ede5dc]/80 dark:bg-[#251b16] border border-[#d8ccc0] dark:border-[#382b23] text-xs font-bold shrink-0">
+              <button
+                type="button"
+                onClick={() => handleToggleMode("kasir")}
+                className={`px-3 py-1.5 rounded-lg transition cursor-pointer text-xs ${
+                  appMode === "kasir"
+                    ? "bg-amber-500 text-stone-950 font-black shadow-xs"
+                    : "text-stone-600 hover:text-stone-950 dark:text-stone-400 dark:hover:text-white"
+                }`}
+                title="Beralih ke App Kasir Booth"
+              >
+                <span>🎪 Kasir</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleMode("inventaris")}
+                className={`px-3 py-1.5 rounded-lg transition cursor-pointer text-xs ${
+                  appMode === "inventaris"
+                    ? "bg-amber-500 text-stone-950 font-black shadow-xs"
+                    : "text-stone-600 hover:text-stone-950 dark:text-stone-400 dark:hover:text-white"
+                }`}
+                title="Beralih ke App Inventaris & Back-Office"
+              >
+                <span>🏢 Inventaris</span>
+              </button>
+            </div>
+          )}
 
           {/* Ongoing Event Status */}
           {activeEvent ? (
@@ -185,8 +187,8 @@ export default function TopNav({ onToggleSidebar }: TopNavProps) {
 
         {/* Right Side: Cashier, Low Stock, & POS Action */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          {/* Low Stock Warning Icon */}
-          {lowStockCount > 0 && (
+          {/* Low Stock Warning Icon (Hanya untuk Owner / Manager) */}
+          {(activeCashier?.role === "OWNER" || activeCashier?.role === "MANAGER") && lowStockCount > 0 && (
             <Link
               href="/stock?openWa=true"
               title={`${lowStockCount} bahan baku/produk stok menipis! Klik untuk kirim rekap WhatsApp`}

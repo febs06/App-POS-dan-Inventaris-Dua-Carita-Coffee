@@ -94,10 +94,19 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     role: string;
   } | null>(null);
 
+  const isOwner = activeCashier?.role === "OWNER" || activeCashier?.role === "MANAGER";
+
   const [isCashierModalOpen, setIsCashierModalOpen] = useState(false);
 
   // Sync mode with current pathname or localStorage
   useEffect(() => {
+    // Jika role kasir/bukan owner, PAKSA selalu ke mode kasir
+    if (activeCashier && !isOwner) {
+      setAppMode("kasir");
+      localStorage.setItem("app_mode", "kasir");
+      return;
+    }
+
     const isKasirRoute = pathname === "/pos" || pathname === "/bazaar-orders";
     const isInventarisRoute =
       pathname === "/stock" ||
@@ -119,9 +128,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         setAppMode(savedMode);
       }
     }
-  }, [pathname]);
+  }, [pathname, activeCashier, isOwner]);
 
   const handleSetMode = (mode: "kasir" | "inventaris") => {
+    // Cegah kasir beralih ke mode inventaris
+    if (mode === "inventaris" && !isOwner) {
+      return;
+    }
+
     setAppMode(mode);
     localStorage.setItem("app_mode", mode);
     window.dispatchEvent(new CustomEvent("app-mode-changed", { detail: mode }));
@@ -230,7 +244,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   {storeSetting.storeName || "Dua Carita Coffee"}
                 </span>
                 <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
-                  {appMode === "kasir" ? "KASIR" : "ADMIN"}
+                  {!isOwner ? "KASIR" : appMode === "kasir" ? "KASIR" : "ADMIN"}
                 </span>
               </div>
               <p className="text-xs text-stone-400 font-medium truncate">
@@ -239,47 +253,61 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
           </div>
 
-          {/* DUAL-MODE SWITCHER (1 Web, 2 Focused Spaces) */}
-          <div className="p-3 pb-2 shrink-0 border-b border-[#2e231d] bg-[#140e0b]/50">
-            <div className="grid grid-cols-2 p-1 bg-[#140e0b] rounded-2xl border border-[#2e231d] text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => handleSetMode("kasir")}
-                className={`py-2 px-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                  appMode === "kasir"
-                    ? "bg-[#d97706] text-stone-950 shadow-md font-black"
-                    : "text-stone-400 hover:text-stone-100"
-                }`}
-                title="Beralih ke App Kasir Booth (Fokus Bazaar)"
-              >
-                <span>🎪 Kasir Booth</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSetMode("inventaris")}
-                className={`py-2 px-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                  appMode === "inventaris"
-                    ? "bg-[#d97706] text-stone-950 shadow-md font-black"
-                    : "text-stone-400 hover:text-stone-100"
-                }`}
-                title="Beralih ke App Inventaris & Back-Office"
-              >
-                <span>🏢 Inventaris</span>
-              </button>
+          {/* DUAL-MODE SWITCHER (Khusus Owner / Manager) */}
+          {!isOwner ? (
+            <div className="p-3 pb-2 shrink-0 border-b border-[#2e231d] bg-[#140e0b]/50">
+              <div className="flex items-center gap-2.5 px-3 py-2 bg-[#140e0b] rounded-xl border border-[#2e231d] text-xs">
+                <div className="h-7 w-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                  <Lock className="h-3.5 w-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <span className="font-bold text-stone-200 block text-xs truncate">Akses Kasir POS</span>
+                  <span className="text-[10px] text-stone-400 block truncate">Operasional Booth Bazaar</span>
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="p-3 pb-2 shrink-0 border-b border-[#2e231d] bg-[#140e0b]/50">
+              <div className="grid grid-cols-2 p-1 bg-[#140e0b] rounded-2xl border border-[#2e231d] text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => handleSetMode("kasir")}
+                  className={`py-2 px-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                    appMode === "kasir"
+                      ? "bg-[#d97706] text-stone-950 shadow-md font-black"
+                      : "text-stone-400 hover:text-stone-100"
+                  }`}
+                  title="Beralih ke App Kasir Booth (Fokus Bazaar)"
+                >
+                  <span>🎪 Kasir Booth</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetMode("inventaris")}
+                  className={`py-2 px-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                    appMode === "inventaris"
+                      ? "bg-[#d97706] text-stone-950 shadow-md font-black"
+                      : "text-stone-400 hover:text-stone-100"
+                  }`}
+                  title="Beralih ke App Inventaris & Back-Office"
+                >
+                  <span>🏢 Inventaris</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* NAV LIST AREA */}
           <div className="p-3 space-y-1 overflow-y-auto flex-1 custom-scrollbar">
-            {appMode === "kasir" ? (
-              /* ================= MODE KASIR BOOTH ================= */
+            {!isOwner || appMode === "kasir" ? (
+              /* ================= MODE KASIR BOOTH (Kasir & Owner in Kasir Mode) ================= */
               <div className="space-y-1.5">
                 <div className="px-3 pt-2 pb-1.5 text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center justify-between">
                   <span>Menu Kasir Bazaar</span>
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
 
-                {KASIR_NAV_ITEMS.map((item) => {
+                {KASIR_NAV_ITEMS.filter((item) => isOwner || item.href !== "/finance").map((item) => {
                   const Icon = item.icon;
                   const isActive = pathname === item.href;
 
@@ -322,16 +350,20 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <span>Mode Kasir Ramping</span>
                   </div>
                   <p className="text-xs text-stone-400 leading-relaxed">
-                    Menu administratif disembunyikan agar kasir fokus pada antrean pesanan booth saat bazaar.
+                    {!isOwner
+                      ? "Akses dikunci khusus untuk transaksi kasir POS, antrean pesanan, dan ambil PO WhatsApp."
+                      : "Menu administratif disembunyikan agar kasir fokus pada antrean pesanan booth saat bazaar."}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => handleSetMode("inventaris")}
-                    className="w-full py-2.5 px-3 rounded-xl bg-[#251c17] hover:bg-[#2e231d] text-stone-200 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs border border-[#3d2c25]"
-                  >
-                    <span>Buka Inventaris & Admin</span>
-                    <ArrowRight className="h-3.5 w-3.5 text-amber-400" />
-                  </button>
+                  {isOwner && (
+                    <button
+                      type="button"
+                      onClick={() => handleSetMode("inventaris")}
+                      className="w-full py-2.5 px-3 rounded-xl bg-[#251c17] hover:bg-[#2e231d] text-stone-200 font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs border border-[#3d2c25]"
+                    >
+                      <span>Buka Inventaris & Admin</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-amber-400" />
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
