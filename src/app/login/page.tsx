@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Store,
   Lock,
-  User,
+  Mail,
   Shield,
   Clock,
   ArrowRight,
@@ -29,7 +29,7 @@ interface ActiveEvent {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -97,8 +97,8 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim()) {
-      setError("Email atau username wajib diisi");
+    if (!email.trim()) {
+      setError("Email akun wajib diisi");
       return;
     }
     if (!password) {
@@ -114,7 +114,7 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: username.trim(),
+          email: email.trim(),
           password: password,
         }),
       });
@@ -211,7 +211,7 @@ export default function LoginPage() {
               Masuk ke Sistem
             </h2>
             <p className="text-xs text-slate-400">
-              Silakan masukkan Email / Username dan Password untuk mengakses sistem kasir & inventaris booth
+              Silakan masukkan Email dan Password untuk mengakses sistem kasir & inventaris booth
             </p>
           </div>
 
@@ -223,27 +223,29 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Input Email / Username */}
+            {/* Input Email */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-300 block">
-                Email / Username
+                Email Akun
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                  <User className="h-4 w-4" />
+                  <Mail className="h-4 w-4" />
                 </div>
                 <input
-                  type="text"
+                  type="email"
+                  name="email"
+                  autoComplete="email"
                   required
                   autoFocus
                   autoCapitalize="none"
                   autoCorrect="off"
-                  value={username}
+                  value={email}
                   onChange={(e) => {
-                    setUsername(e.target.value);
+                    setEmail(e.target.value);
                     if (error) setError("");
                   }}
-                  placeholder="Contoh: febriansyah / kasir1 / nama@email.com"
+                  placeholder="Contoh: febs@duacarita.com / kasir@duacarita.com"
                   className="w-full pl-10 pr-4 py-3 rounded-2xl bg-slate-950/80 border border-slate-700/80 text-white placeholder:text-slate-500 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
                 />
               </div>

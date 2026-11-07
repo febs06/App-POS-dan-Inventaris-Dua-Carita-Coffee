@@ -66,7 +66,7 @@ export default function SettingsPage() {
 
   // Employee Form
   const [empName, setEmpName] = useState("");
-  const [empUsername, setEmpUsername] = useState("");
+  const [empEmail, setEmpEmail] = useState("");
   const [empPin, setEmpPin] = useState("");
   const [empRole, setEmpRole] = useState("KASIR");
   const [empActive, setEmpActive] = useState(true);
@@ -191,7 +191,7 @@ export default function SettingsPage() {
   const openAddEmployee = () => {
     setEditingEmployee(null);
     setEmpName("");
-    setEmpUsername("");
+    setEmpEmail("");
     setEmpPin("");
     setShowEmpPin(false);
     setEmpRole("KASIR");
@@ -203,7 +203,7 @@ export default function SettingsPage() {
   const openEditEmployee = (emp: any) => {
     setEditingEmployee(emp);
     setEmpName(emp.name);
-    setEmpUsername(emp.username);
+    setEmpEmail(emp.email || emp.username || "");
     setEmpPin(""); // Reset PIN to blank unless user wants to change
     setShowEmpPin(false);
     setEmpRole(emp.role);
@@ -231,7 +231,7 @@ export default function SettingsPage() {
           body: JSON.stringify({
             id: editingEmployee.id,
             name: empName,
-            username: empUsername,
+            email: empEmail.trim().toLowerCase(),
             pin: empPin.trim() || undefined,
             role: empRole,
             isActive: empActive,
@@ -248,7 +248,7 @@ export default function SettingsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: empName,
-            username: empUsername,
+            email: empEmail.trim().toLowerCase(),
             pin: empPin.trim(),
             role: empRole,
           }),
@@ -526,7 +526,7 @@ export default function SettingsPage() {
               <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3.5 px-4">Nama Staf</th>
-                  <th className="py-3.5 px-4">Username</th>
+                  <th className="py-3.5 px-4">Email Akun</th>
                   <th className="py-3.5 px-4">Role / Jabatan</th>
                   <th className="py-3.5 px-4">Status Password</th>
                   <th className="py-3.5 px-4">Status</th>
@@ -553,7 +553,7 @@ export default function SettingsPage() {
                         {emp.name}
                       </td>
                       <td className="py-3.5 px-4 text-slate-500 font-mono">
-                        @{emp.username}
+                        {emp.email || `${emp.username}@duacarita.com`}
                       </td>
                       <td className="py-3.5 px-4">
                         <span
@@ -644,14 +644,14 @@ export default function SettingsPage() {
 
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Username <span className="text-rose-500">*</span>
+                  Email Akun <span className="text-rose-500">*</span>
                 </label>
                 <input
-                  type="text"
+                  type="email"
                   required
-                  value={empUsername}
-                  onChange={(e) => setEmpUsername(e.target.value)}
-                  placeholder="rian_pos"
+                  value={empEmail}
+                  onChange={(e) => setEmpEmail(e.target.value)}
+                  placeholder="rian@duacarita.com"
                   className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 font-mono text-slate-900"
                 />
               </div>

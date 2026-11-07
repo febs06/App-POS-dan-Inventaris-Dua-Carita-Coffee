@@ -5,25 +5,28 @@ import { verifyPin, hashPin, createSessionToken } from "@/lib/auth";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { id, username, pin, password } = body;
+    const { id, email, username, pin, password } = body;
     const inputPassword = password !== undefined ? password : pin;
+    const inputEmail = (email || username || "").trim().toLowerCase();
 
-    if (!username && !id) {
-      return NextResponse.json({ error: "Email atau username wajib dimasukkan" }, { status: 400 });
+    if (!inputEmail && !id) {
+      return NextResponse.json({ error: "Email wajib dimasukkan" }, { status: 400 });
     }
 
     if (!inputPassword) {
       return NextResponse.json({ error: "Password wajib dimasukkan" }, { status: 400 });
     }
 
-    // Pembersihan input username / email (mendukung format @username atau username langsung)
-    const rawUser = String(username || "").trim();
-    const cleanUsername = rawUser.startsWith("@") ? rawUser.substring(1).toLowerCase() : rawUser.toLowerCase();
-
     let employee = null;
-    if (cleanUsername) {
-      employee = await prisma.employee.findUnique({
-        where: { username: cleanUsername },
+    if (inputEmail) {
+      // Cari karyawan berdasarkan email akun atau username sebagai fallback
+      employee = await prisma.employee.findFirst({
+        where: {
+          OR: [
+            { email: inputEmail },
+            { username: inputEmail.startsWith("@") ? inputEmail.substring(1) : inputEmail },
+          ],
+        },
       });
     } else if (id) {
       employee = await prisma.employee.findUnique({ where: { id } });
@@ -61,6 +64,7 @@ export async function POST(req: Request) {
     const sessionUser = {
       id: employee.id,
       name: employee.name,
+      email: employee.email,
       username: employee.username,
       role: employee.role,
     };

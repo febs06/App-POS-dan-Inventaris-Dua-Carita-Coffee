@@ -19,6 +19,7 @@ export async function GET() {
       select: {
         id: true,
         name: true,
+        email: true,
         username: true,
         role: true,
         isActive: true,
@@ -36,23 +37,31 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, username, pin, role } = body;
+    const { name, email, username, pin, role } = body;
 
-    if (!name || !username || !pin) {
+    const inputEmail = (email || username || "").toLowerCase().trim();
+
+    if (!name || !inputEmail || !pin) {
       return NextResponse.json(
-        { error: "Nama, username, dan PIN wajib diisi" },
+        { error: "Nama, email, dan password wajib diisi" },
         { status: 400 }
       );
     }
 
-    const cleanUsername = username.toLowerCase().trim();
-    const existing = await prisma.employee.findUnique({
-      where: { username: cleanUsername },
+    const cleanUsername = username ? username.toLowerCase().trim() : inputEmail.split("@")[0];
+
+    const existing = await prisma.employee.findFirst({
+      where: {
+        OR: [
+          { email: inputEmail },
+          { username: cleanUsername },
+        ],
+      },
     });
 
     if (existing) {
       return NextResponse.json(
-        { error: "Username sudah digunakan oleh karyawan lain" },
+        { error: "Email atau username sudah terdaftar untuk staf lain" },
         { status: 400 }
       );
     }
@@ -77,6 +86,7 @@ export async function POST(req: Request) {
     const employee = await prisma.employee.create({
       data: {
         name: name.trim(),
+        email: inputEmail.includes("@") ? inputEmail : `${inputEmail}@duacarita.com`,
         username: cleanUsername,
         pinHash: hashedPin,
         pin: null, // Do not store plaintext
@@ -86,6 +96,7 @@ export async function POST(req: Request) {
       select: {
         id: true,
         name: true,
+        email: true,
         username: true,
         role: true,
         isActive: true,
@@ -102,7 +113,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { id, name, username, pin, role, isActive } = body;
+    const { id, name, email, username, pin, role, isActive } = body;
 
     if (!id) {
       return NextResponse.json({ error: "ID karyawan dibutuhkan" }, { status: 400 });
@@ -126,12 +137,22 @@ export async function PUT(req: Request) {
 
     const updateData: any = {};
     if (name !== undefined) updateData.name = name.trim();
+    if (email !== undefined) {
+      const cleanEmail = email.toLowerCase().trim();
+      const existingEmail = await prisma.employee.findFirst({
+        where: { email: cleanEmail, NOT: { id } },
+      });
+      if (existingEmail) {
+        return NextResponse.json({ error: "Email sudah digunakan oleh staf lain" }, { status: 400 });
+      }
+      updateData.email = cleanEmail;
+    }
     if (username !== undefined) {
       const cleanUsername = username.toLowerCase().trim();
-      const existingUser = await prisma.employee.findUnique({
-        where: { username: cleanUsername },
+      const existingUser = await prisma.employee.findFirst({
+        where: { username: cleanUsername, NOT: { id } },
       });
-      if (existingUser && existingUser.id !== id) {
+      if (existingUser) {
         return NextResponse.json({ error: "Username sudah digunakan karyawan lain" }, { status: 400 });
       }
       updateData.username = cleanUsername;
@@ -162,6 +183,7 @@ export async function PUT(req: Request) {
       select: {
         id: true,
         name: true,
+        email: true,
         username: true,
         role: true,
         isActive: true,

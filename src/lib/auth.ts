@@ -33,7 +33,8 @@ export function verifyPin(pin: string, stored: string | null | undefined): boole
 export interface SessionUser {
   id: string;
   name: string;
-  username: string;
+  email?: string | null;
+  username?: string | null;
   role: string;
 }
 

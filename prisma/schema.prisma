@@ -237,7 +237,8 @@ model StockOpname {
 model Employee {
   id        String   @id @default(cuid())
   name      String
-  username  String   @unique
+  email     String?  @unique
+  username  String?  @unique
   pin       String?  // Legacy 4-6 digit PIN (auto-migrated to pinHash)
   pinHash   String?  // Salted PBKDF2/SHA-256 hash
   role      String   @default("KASIR") // OWNER, MANAGER, KASIR, BARISTA
