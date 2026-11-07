@@ -74,7 +74,15 @@ export async function GET(req: NextRequest) {
         items: {
           include: {
             product: true,
-            variant: true,
+            variant: {
+              include: {
+                ingredients: {
+                  include: {
+                    rawMaterial: true,
+                  },
+                },
+              },
+            },
           },
         },
         payments: true,
@@ -498,7 +506,15 @@ export async function POST(req: NextRequest) {
         items: {
           include: {
             product: true,
-            variant: true,
+            variant: {
+              include: {
+                ingredients: {
+                  include: {
+                    rawMaterial: true,
+                  },
+                },
+              },
+            },
           },
         },
         payments: true,
@@ -663,7 +679,15 @@ export async function PUT(req: NextRequest) {
         items: {
           include: {
             product: true,
-            variant: true,
+            variant: {
+              include: {
+                ingredients: {
+                  include: {
+                    rawMaterial: true,
+                  },
+                },
+              },
+            },
           },
         },
         payments: true,

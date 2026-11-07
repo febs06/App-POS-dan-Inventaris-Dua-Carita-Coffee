@@ -1,95 +1,100 @@
-# Project: Dua Carita Coffee — Strict Per-Variant Recipe & Inventory System
+# Project: Booth POS — Cashier Navigation, Bazaar Orders, Audit Reports, and Products & Categories Improvements
 
 ## Architecture
-- **Framework**: Next.js 15 (App Router), React 19, TypeScript
-- **Database & ORM**: PostgreSQL on Neon (`shiny-bird-53036663`), Prisma ORM
-- **Data Flow**:
-  1. `ProductVariant` strictly owns `ProductIngredient[]` (no direct link from `Product` to recipe).
-  2. `RawMaterial` contains beverage ingredients (milk, espresso, syrups) and physical packaging (cups, lids, bottles, stickers).
-  3. Variant HPP is calculated deterministically as $\sum (\text{amount} \times \text{rawMaterial.costPerUnit})$ and synced to `ProductVariant.cost`.
-  4. Variant stock readiness (`isAvailableByIngredients`, `maxProducible`, `missingIngredients`) is computed per variant based on ingredient stocks.
-  5. POS Orders (`/api/orders`) resolve recipes strictly from `item.variant.ingredients`, depleting specific materials (e.g. 1L bottle + 1L sticker + scaled beverage liquids) and decrementing both product and variant stocks.
-  6. Admin / POS UI (`src/app/products/page.tsx`, `PosProductModal.tsx`) provides an interactive per-variant recipe manager and variant readiness indicators.
+- **Framework**: Next.js 15 (App Router), React 19, Tailwind CSS, TypeScript
+- **Database & ORM**: PostgreSQL on Neon, Prisma ORM
+- **Module Boundaries & Data Flow**:
+  1. **Authentication & RBAC Navigation**:
+     - `Employee.role`: `"OWNER"`, `"MANAGER"`, `"KASIR"`, `"BARISTA"`.
+     - Client stores active cashier in `sessionStorage` and `localStorage` under key `"active_cashier"`.
+     - `Sidebar.tsx`: Renders navigation items, filtering out privileged back-office routes (`/finance`) for non-owner cashiers.
+     - `AppLayout.tsx` & `src/app/finance/page.tsx`: Defense-in-depth route guard ensuring cashiers accessing `/finance` are immediately redirected to `/pos` without flashing back-office data or executing back-office API queries (`/api/cashflow`, `/api/rab`).
+  2. **Bazaar Operations (`/bazaar-orders`)**:
+     - Fetches orders from `/api/orders?sort=desc`.
+     - Order payments contain payment method (`CASH`, `QRIS`, `TRANSFER`) and amount.
+     - Computes real-time cashier operational metrics: cup sold today, omset today, CASH nominal & count, QRIS nominal & count, and count of orders currently being prepared ("diproses" = "Sedang Diracik").
+  3. **Owner Audit Reports (`/reports`)**:
+     - `GET /api/orders` enriched to include `items.variant.ingredients.rawMaterial`.
+     - Computes Total Omzet, Total HPP (based on raw materials/recipes with fallback to variant/product cost), and Total Laba Kotor (Total Omzet - Total HPP).
+     - Preserves existing audit report visual layout, card design, and print stylesheet.
+  4. **Product Catalog & Variant Management (`/products`)**:
+     - Edit Product Modal: Removes redundant top-level standalone fields ("Harga Jual", "Modal / HPP", "Estimasi Keuntungan Standar") when editing an existing menu item, keeping the variant and packaging section completely intact and functional.
+     - Products Table: "Margin Laba" column upgraded to display per-variant breakdown (e.g. 1.000 ML, 250 ML, Large, Reguler) with profit margin in Rp and %, matching the layout of the "Modal (HPP)" column.
 
 ## Feature Inventory
-Every feature from user requirements (R1–R5) mapped to a milestone:
+Every feature from the user request and survey mapped to an assigned milestone:
 
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | Database Safety & Backup | Create Neon branch snapshot + full 21-table offline JSON backup before schema changes | M1 | R1 |
-| 2 | Variant-Specific Recipe Schema | Update Prisma schema so `ProductIngredient` references `ProductVariant` via `variantId` (strict, no fallback) | M2 | R2 |
-| 3 | Recipe Data Migration & Seeding | Migrate existing cup recipes and seed distinct recipes for all 28 variants (Cup Reg, Cup Large, Botol 250ml, Botol 1L) | M2 | R2 |
-| 4 | Safe Product Upsert Logic | Replace destructive `productVariant.deleteMany` in `PUT /api/products` with non-destructive upsert to protect variant recipes | M2 | R2 |
-| 5 | Accurate HPP Calculation Engine | Compute HPP per variant from ingredients + packaging cost, update `ProductVariant.cost`, support live recalculation | M3 | R3 |
-| 6 | Variant Stock Readiness Engine | Compute `isAvailableByIngredients`, `missingIngredients`, `maxProducible` per variant in `GET /api/products` | M3 | R4 |
-| 7 | Variant-Aware POS Depletion | In `POST /api/orders`, deplete raw materials strictly from variant recipes and decrement `product.stock` + `variant.stock` | M4 | R4 |
-| 8 | Order Void/Delete Stock Restoration | In `PUT /api/orders` (void) and `DELETE /api/orders`, restore variant materials and stock accurately | M4 | R4 |
-| 9 | Admin Recipe UI per Variant | Interactive variant tab switcher in `src/app/products/page.tsx` with ingredient management, copy recipe, and HPP sync | M5 | R5 |
-| 10 | POS Variant Readiness Indicators | Display real-time availability and max producible badges on variant buttons in `PosProductModal.tsx` and catalog cards | M5 | R5 |
-| 11 | Pre-Order Variant Selection | Add variant selection to `src/app/po/page.tsx` so PO items cleanly associate with variant recipes | M5 | R5 |
-| 12 | Automated Verification & Testing Suite | Automated test suite (Tiers 1-4 + Tier 5 coverage) verifying 100% test pass, schema integrity, HPP, depletion, and UI build | M6 | Acceptance Criteria |
+| 1 | Cashier Sidebar Navigation Filter | Hide "Kas Booth & Shift" (/finance) for cashier role in sidebar | M1 | R1 |
+| 2 | /finance Direct Route Protection | Redirect cashier accessing `/finance` directly to `/pos`, prevent rendering back-office finance data and stop API fetching | M1 | R1 |
+| 3 | Bazaar Orders CASH Payment Metric Card | Display Total Masuk via CASH (nominal Rp and transaction count) in `/bazaar-orders` | M2 | R1 |
+| 4 | Bazaar Orders QRIS Payment Metric Card | Display Total Masuk via QRIS (nominal Rp and transaction count) in `/bazaar-orders` | M2 | R1 |
+| 5 | Bazaar Orders Cashier Consolidated Summary | Provide summary: cup hari ini terjual, omset hari ini, pembayaran cash, pembayaran qris, pesanan sedang diracik | M2 | R1 |
+| 6 | Orders API Recipe Ingredients Inclusion | Include `variant: { include: { ingredients: { include: { rawMaterial: true } } } }` in `GET /api/orders` | M3 | R1 |
+| 7 | Owner Audit Reports Total HPP Metric | Compute Total HPP from recipe raw materials for filtered active orders and display in `/reports` preserving visual style | M3 | R1 |
+| 8 | Owner Audit Reports Total Laba Kotor Metric | Compute Total Laba Kotor (Total Omzet - Total HPP) with gross margin % in `/reports` preserving visual style | M3 | R1 |
+| 9 | Product Edit Modal Top Fields Cleanup | In Edit Product Modal, remove standalone "Harga Jual (Rp)", "Modal / HPP (Rp)", and "Estimasi Keuntungan Standar" bar; preserve variant section | M4 | R2 |
+| 10 | Products Table Margin Laba Breakdown | Format "Margin Laba" column to list each active variant/size with projected profit in Rp and % matching "Modal (HPP)" column | M4 | R3 |
+| 11 | Comprehensive Verification & Forensic Integrity Audit | Validate complete build, test suites, non-regression, and forensic integrity audit | M5 | Acceptance Criteria |
 
 ## Milestones
 
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Database Safety & Backup | Create Neon point-in-time branch backup and execute 21-table programmatic JSON backup script | none | DONE |
-| M2 | Strict Variant Recipe Modeling & Migration | Update `prisma/schema.prisma` (`ProductVariant` 1-N `ProductIngredient`), run `db push`, migrate & seed recipes for all 28 variants, fix `PUT /api/products` upsert | M1 | DONE |
-| M3 | Variant HPP & Stock Readiness Engine | Implement per-variant HPP calculation and stock readiness calculations in `src/app/api/products/route.ts` and core utilities | M2 | DONE |
-| M4 | POS Variant-Aware Inventory Depletion | Update `src/app/api/orders/route.ts` (checkout, void, delete) to strictly deplete/restore variant ingredients and stocks | M3 | DONE |
-| M5 | Full-Stack Recipe Management UI | Update `src/app/products/page.tsx` (variant tabs BOM), `PosProductModal.tsx` (readiness badges), and `src/app/po/page.tsx` | M3, M4 | DONE |
-| M6 | Automated E2E Verification & Audit | Execute automated integration tests across all tiers, run `npx tsc --noEmit` and `npm run build`, and complete Forensic Integrity Audit | M1, M2, M3, M4, M5 | DONE |
+| M1 | Cashier Navigation & /finance Route Protection | `src/components/Sidebar.tsx`, `src/components/AppLayout.tsx`, `src/app/finance/page.tsx` | none | DONE |
+| M2 | Bazaar Orders Payment & Operational Metrics | `src/app/bazaar-orders/page.tsx` | none | DONE |
+| M3 | Owner Audit Reports HPP & Gross Profit Metrics | `src/app/api/orders/route.ts`, `src/app/reports/page.tsx` | none | DONE |
+| M4 | Product Edit Modal Cleanup & Table Margin Laba Breakdown | `src/app/products/page.tsx` | none | DONE |
+| M5 | Dual Track Verification & Forensic Integrity Audit | E2E test verification, `npm run build`, forensic integrity audit | M1, M2, M3, M4 | DONE |
 
 ## Interface Contracts
 
-### ProductVariant ↔ ProductIngredient
-- `ProductVariant.id` (`String cuid`) is foreign key `variantId` in `ProductIngredient`.
-- Constraint: `@@unique([variantId, rawMaterialId])`.
-- Zero reference to `productId` in `ProductIngredient`.
+### 1. Cashier Role & Route Guard Contract
+- Privileged Roles: `userRole === "OWNER" || userRole === "MANAGER"` (case-insensitive, trimmed).
+- Restricted Cashier Role: Any non-privileged role (default `"KASIR"`).
+- Restricted Routes for Cashier: `/finance`, `/settings`, `/reports`, `/analytics`, `/customers`, `/suppliers`, `/events`.
+- Cashier Allowed Routes: `/pos`, `/bazaar-orders`, `/po`.
+- Direct Access to `/finance`:
+  - `AppLayout.tsx`: Halts rendering `{children}` and invokes `router.replace("/pos")`.
+  - `src/app/finance/page.tsx`: In-page role check prevents data fetching (`/api/cashflow`, `/api/rab`) and renders `null` / access denied card during redirection.
 
-### `GET /api/products` Response Contract
-Each variant in `product.variants` includes:
-```ts
-{
-  id: string;
-  productId: string;
-  packaging: string; // "Cup" | "Botol"
-  size: string; // "Reguler" | "Large" | "250 ML" | "1.000 ML"
-  price: number;
-  cost: number; // Stored HPP
-  stock: number;
-  isActive: boolean;
-  ingredients: {
-    id: string;
-    variantId: string;
-    rawMaterialId: string;
-    amount: number;
-    rawMaterial: RawMaterial;
-  }[];
-  calculatedHpp: number; // Dynamically computed from ingredients
-  isAvailableByIngredients: boolean;
-  missingIngredients: string[];
-  maxProducible: number | null;
-}
-```
+### 2. Bazaar Orders Summary Contract
+- Payment Calculation:
+  - `cashTotal`: $\sum \text{payments with method CASH / Tunai}$
+  - `cashTxCount`: count of distinct orders with CASH payment
+  - `qrisTotal`: $\sum \text{payments with method QRIS}$
+  - `qrisTxCount`: count of distinct orders with QRIS payment
+- Operational Metrics:
+  - Cup terjual: $\sum \text{item.qty}$ across filtered orders
+  - Omset: $\sum \text{order.totalAmount}$ across filtered orders
+  - Sedang diracik: count of orders with `status === "diproses"`
 
-### `POST /api/orders` Request & Depletion Contract
-- `items`: `Array<{ productId: string; variantId: string; price: number; qty: number }>`
-- Backend resolves `variantId` -> `variant.ingredients`.
-- Required raw materials = $\sum (\text{ing.amount} \times \text{item.qty})$.
-- Stock deductions:
-  - `RawMaterial.stock` decremented by required amounts.
-  - `Product.stock` decremented by `qty`.
-  - `ProductVariant.stock` decremented by `qty`.
+### 3. Orders HPP & Gross Profit Calculation Contract
+- Order Item Unit HPP:
+  $$\text{unitHpp} = \sum (\text{ingredient.amount} \times \text{ingredient.rawMaterial.costPerUnit}) \quad \text{fallback to } \text{variant.cost} \quad \text{fallback to } \text{product.cost}$$
+- Total HPP = $\sum_{\text{active non-void orders}} \sum_{\text{items}} (\text{item.qty} \times \text{unitHpp})$
+- Total Laba Kotor = $\text{Total Omzet} - \text{Total HPP}$
+- Gross Margin % = $(\text{Total Laba Kotor} / \text{Total Omzet}) \times 100$
+
+### 4. Product Modal & Margin Table Contract
+- Edit Product Modal:
+  - When `editingProduct !== null`, standalone fields at top are not rendered.
+  - Per-variant inputs inside `prodVariants` manage price and cost.
+  - Form submission saves variant prices and costs, updating product price/cost fallback from the first active variant.
+- Products Table "Margin Laba" Column:
+  - Per-variant badges matching "Modal (HPP)" structure:
+    `varProfit = v.price - v.cost`
+    `varMargin = v.price > 0 ? Math.round((varProfit / v.price) * 100) : 0`
+    Display: `{v.size}: {formatRupiah(varProfit)} ({varMargin}%)`
 
 ## Code Layout
-- `prisma/schema.prisma`: Data models (`ProductVariant`, `ProductIngredient`, `RawMaterial`, `Product`)
-- `src/app/api/products/route.ts`: Products & Variants CRUD, per-variant HPP & readiness logic
-- `src/app/api/orders/route.ts`: Order creation, variant ingredient depletion, order void/delete rollback
-- `src/app/api/analytics/route.ts`: Financial analytics using variant costs
-- `src/app/products/page.tsx`: Admin product catalog and variant recipe BOM editor
-- `src/components/PosProductModal.tsx`: POS cashier variant selector with live readiness indicators
-- `src/app/pos/page.tsx`: POS catalog grid and checkout dispatch
-- `src/app/po/page.tsx`: Pre-order management with variant support
-- `scripts/`: Backup scripts, migration scripts, and automated verification test harnesses
-- `backups/`: Database snapshot JSON files
+- `src/components/Sidebar.tsx`: Cashier sidebar navigation & `/finance` filtering
+- `src/components/AppLayout.tsx`: Global route guard and access restriction
+- `src/app/finance/page.tsx`: Finance back-office page with defense-in-depth role guard
+- `src/app/bazaar-orders/page.tsx`: Bazaar orders view with CASH/QRIS & operational metrics
+- `src/app/api/orders/route.ts`: Orders API including variant recipe ingredients
+- `src/app/reports/page.tsx`: Owner audit report with Total HPP & Total Laba Kotor
+- `src/app/products/page.tsx`: Product edit modal cleanup and table margin laba breakdown
+- `scripts/verify_m1_m2_challenge.ts`: Empirical challenge test suite for M1 and M2 (97 assertions)
+- `scripts/verify_m3_m4_challenge.ts`: Empirical challenge test suite for M3 and M4 (26 assertions)

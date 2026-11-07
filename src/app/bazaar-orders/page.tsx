@@ -156,13 +156,70 @@ export default function BazaarOrdersPage() {
 
     const totalRevenue = relevant.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
     const totalItems = relevant.reduce(
-      (sum, o) => sum + (o.items?.reduce((s: number, it: any) => s + it.qty, 0) || 0),
+      (sum, o) => sum + (o.items?.reduce((s: number, it: any) => s + (it.qty || 0), 0) || 0),
       0
     );
-    const processingCount = relevant.filter((o) => o.status === "diproses").length;
-    const completedCount = relevant.filter((o) => o.status === "selesai").length;
+    const processingCount = relevant.filter(
+      (o) => o.status === "diproses" || o.status?.toLowerCase() === "sedang diracik"
+    ).length;
+    const completedCount = relevant.filter(
+      (o) => o.status === "selesai" || o.status?.toLowerCase() === "siap diambil"
+    ).length;
 
-    return { totalRevenue, totalItems, processingCount, completedCount, totalOrders: relevant.length };
+    const isCashMethod = (method?: string | null) => {
+      if (!method) return false;
+      const m = String(method).toUpperCase().trim();
+      return m === "CASH" || m === "TUNAI";
+    };
+
+    const isQrisMethod = (method?: string | null) => {
+      if (!method) return false;
+      const m = String(method).toUpperCase().trim();
+      return m === "QRIS";
+    };
+
+    let cashTotal = 0;
+    let qrisTotal = 0;
+    const cashOrderIds = new Set<string>();
+    const qrisOrderIds = new Set<string>();
+
+    relevant.forEach((o) => {
+      const payments = o.payments || [];
+      if (payments.length > 0) {
+        payments.forEach((p: any) => {
+          if (isCashMethod(p.method)) {
+            cashTotal += Number(p.amount) || 0;
+            cashOrderIds.add(o.id);
+          } else if (isQrisMethod(p.method)) {
+            qrisTotal += Number(p.amount) || 0;
+            qrisOrderIds.add(o.id);
+          }
+        });
+      } else if (o.paymentMethod) {
+        if (isCashMethod(o.paymentMethod)) {
+          cashTotal += Number(o.totalAmount) || 0;
+          cashOrderIds.add(o.id);
+        } else if (isQrisMethod(o.paymentMethod)) {
+          qrisTotal += Number(o.totalAmount) || 0;
+          qrisOrderIds.add(o.id);
+        }
+      }
+    });
+
+    const cashTxCount = cashOrderIds.size;
+    const qrisTxCount = qrisOrderIds.size;
+
+    return {
+      totalRevenue,
+      totalItems,
+      processingCount,
+      completedCount,
+      totalOrders: relevant.length,
+      cashTotal,
+      cashTxCount,
+      qrisTotal,
+      qrisTxCount,
+    };
   }, [orders, selectedEventId]);
 
   return (
@@ -215,44 +272,78 @@ export default function BazaarOrdersPage() {
         </div>
       </div>
 
-      {/* Metric Stat Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Omzet Bazaar Ini</div>
-          <div className="text-lg sm:text-xl font-black text-amber-600 mt-1 font-mono">
-            {formatRupiah(stats.totalRevenue)}
+      {/* Metric Stat Cards / Ringkasan Kasir */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3.5">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Omset Hari Ini</div>
+            <div className="text-lg sm:text-xl font-black text-amber-600 mt-1 font-mono">
+              {formatRupiah(stats.totalRevenue)}
+            </div>
           </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">{stats.totalOrders} total transaksi</div>
+          <div className="text-[11px] text-slate-500 mt-1">{stats.totalOrders} total transaksi (omzet bazaar)</div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Item / Cup Terjual</div>
-          <div className="text-lg sm:text-xl font-black text-slate-900 mt-1 font-mono">
-            {stats.totalItems} <span className="text-xs font-semibold text-slate-500">cup</span>
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cup Hari Ini Terjual</div>
+            <div className="text-lg sm:text-xl font-black text-slate-900 mt-1 font-mono">
+              {stats.totalItems} <span className="text-xs font-semibold text-slate-500">cup</span>
+            </div>
           </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Produk booth bazaar</div>
+          <div className="text-[11px] text-slate-500 mt-1">Produk & cup terjual di booth</div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-          <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-            <span>Sedang Diracik</span>
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
+              <Banknote className="h-3.5 w-3.5 text-amber-600" />
+              <span>Total Masuk via CASH</span>
+            </div>
+            <div className="text-lg sm:text-xl font-black text-amber-600 mt-1 font-mono">
+              {formatRupiah(stats.cashTotal)}
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-black text-amber-600 mt-1 font-mono">
-            {stats.processingCount} <span className="text-xs font-semibold text-amber-600">antrean</span>
-          </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Menunggu penyajian</div>
+          <div className="text-[11px] text-slate-500 mt-1">{stats.cashTxCount} transaksi cash (tunai)</div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-          <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-            <span>Selesai / Diambil</span>
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
+              <QrCode className="h-3.5 w-3.5 text-emerald-600" />
+              <span>Total Masuk via QRIS</span>
+            </div>
+            <div className="text-lg sm:text-xl font-black text-emerald-600 mt-1 font-mono">
+              {formatRupiah(stats.qrisTotal)}
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-black text-emerald-700 mt-1 font-mono">
-            {stats.completedCount} <span className="text-xs font-semibold text-emerald-600">pesanan</span>
+          <div className="text-[11px] text-slate-500 mt-1">{stats.qrisTxCount} transaksi QRIS</div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <span>Sedang Diracik</span>
+            </div>
+            <div className="text-lg sm:text-xl font-black text-amber-600 mt-1 font-mono">
+              {stats.processingCount} <span className="text-xs font-semibold text-amber-600">antrean</span>
+            </div>
           </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Sudah diserahkan</div>
+          <div className="text-[11px] text-slate-500 mt-1">Pesanan sedang diracik</div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+              <span>Selesai / Diambil</span>
+            </div>
+            <div className="text-lg sm:text-xl font-black text-emerald-700 mt-1 font-mono">
+              {stats.completedCount} <span className="text-xs font-semibold text-emerald-600">pesanan</span>
+            </div>
+          </div>
+          <div className="text-[11px] text-slate-500 mt-1">Sudah diserahkan</div>
         </div>
       </div>
 
@@ -339,7 +430,9 @@ export default function BazaarOrdersPage() {
             const isProcessing = order.status === "diproses";
             const custName = order.customerName || order.customer?.name || "Pelanggan Booth";
             const payment = order.payments?.[0];
-            const methodLabel = payment?.method === "qris" ? "QRIS" : payment?.method === "transfer" ? "Transfer" : "Tunai";
+            const isQris = payment?.method?.toUpperCase() === "QRIS";
+            const isTransfer = payment?.method?.toUpperCase() === "TRANSFER";
+            const methodLabel = isQris ? "QRIS" : isTransfer ? "Transfer" : "Tunai";
 
             return (
               <div

@@ -93,7 +93,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     role: string;
   } | null>(null);
 
-  const isOwner = activeCashier?.role === "OWNER" || activeCashier?.role === "MANAGER";
+  const role = activeCashier?.role?.trim().toUpperCase();
+  const isOwner = role === "OWNER" || role === "MANAGER";
 
   // Sync mode with current pathname or localStorage
   useEffect(() => {

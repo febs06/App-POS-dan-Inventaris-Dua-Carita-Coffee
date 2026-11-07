@@ -113,6 +113,32 @@ export default function ReportsPage() {
   const avgTicket = totalTransactions > 0 ? Math.round(totalRevenue / totalTransactions) : 0;
   const voidCount = filteredOrders.filter((o) => o.isVoided).length;
 
+  // Perhitungan Total HPP (Modal Resep / Bahan Baku)
+  const totalHpp = activeOrders.reduce((orderSum: number, o: any) => {
+    const orderHpp = (o.items || []).reduce((itemSum: number, item: any) => {
+      if (item.isVoided) return itemSum;
+      const ingredients = item.variant?.ingredients;
+      let unitHpp = 0;
+      if (Array.isArray(ingredients) && ingredients.length > 0) {
+        const recipeHpp = ingredients.reduce(
+          (sum: number, ing: any) =>
+            sum + (Number(ing.amount) || 0) * (Number(ing.rawMaterial?.costPerUnit) ?? 0),
+          0
+        );
+        unitHpp = recipeHpp > 0 ? recipeHpp : Number(item.variant?.cost ?? item.product?.cost ?? 0);
+      } else {
+        unitHpp = Number(item.variant?.cost ?? item.product?.cost ?? 0);
+      }
+      return itemSum + (Number(item.qty) || 0) * unitHpp;
+    }, 0);
+    return orderSum + orderHpp;
+  }, 0);
+
+  // Perhitungan Total Laba Kotor & Gross Margin %
+  const totalGrossProfit = totalRevenue - totalHpp;
+  const grossMargin =
+    totalRevenue > 0 ? ((totalGrossProfit / totalRevenue) * 100).toFixed(1) : "0";
+
   // Rekap per metode pembayaran (dari semua payments dalam filtered orders)
   const allPayments = filteredOrders.flatMap((o) => o.payments || []);
   const qrisTotal = allPayments
@@ -325,14 +351,30 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* 4 Metrics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2">
+        {/* Metrics Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 print:grid-cols-3 print:gap-2">
           <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs print:border-slate-300 print:p-3">
             <span className="text-[11px] font-semibold text-slate-500 uppercase print:text-[10px]">Total Omzet (Hasil Filter)</span>
             <div className="text-2xl font-black text-emerald-700 mt-1 print:text-lg">
               {formatRupiah(totalRevenue)}
             </div>
             <div className="text-[10px] text-slate-400 mt-0.5 print:text-slate-600">Dari {totalTransactions} order berhasil</div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs print:border-slate-300 print:p-3">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase print:text-[10px]">Total HPP (Modal Resep)</span>
+            <div className="text-2xl font-black text-amber-700 mt-1 print:text-lg">
+              {formatRupiah(totalHpp)}
+            </div>
+            <div className="text-[10px] text-slate-400 mt-0.5 print:text-slate-600">Modal resep &amp; bahan baku sistem</div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs print:border-slate-300 print:p-3">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase print:text-[10px]">Total Laba Kotor</span>
+            <div className="text-2xl font-black text-blue-700 mt-1 print:text-lg">
+              {formatRupiah(totalGrossProfit)}
+            </div>
+            <div className="text-[10px] text-slate-400 mt-0.5 print:text-slate-600">Margin: {grossMargin}% dari total omzet</div>
           </div>
 
           <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs print:border-slate-300 print:p-3">

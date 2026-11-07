@@ -14,6 +14,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isPublicRoute = pathname === "/" || pathname === "/login";
 
+  // Synchronous guard to prevent any flash of restricted routes during client navigation
+  const isRestrictedForCashier = !isPublicRoute && (() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const saved =
+        sessionStorage.getItem("active_cashier") ||
+        localStorage.getItem("active_cashier");
+      if (!saved) return false;
+      const c = JSON.parse(saved);
+      const role = c?.role?.trim().toUpperCase();
+      const isOwner = role === "OWNER" || role === "MANAGER";
+      const KASIR_ALLOWED_ROUTES = ["/pos", "/bazaar-orders", "/po"];
+      return !isOwner && !KASIR_ALLOWED_ROUTES.includes(pathname);
+    } catch {
+      return false;
+    }
+  })();
+
   useEffect(() => {
     if (isPublicRoute) {
       setAuthChecking(false);
@@ -23,8 +41,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     const checkAuth = () => {
       try {
-        // Gunakan sessionStorage agar setiap sesi masuk/buka browser baru WAJIB login ulang (termasuk owner)
-        const sessionActive = sessionStorage.getItem("active_cashier");
+        const sessionActive =
+          sessionStorage.getItem("active_cashier") ||
+          localStorage.getItem("active_cashier");
         if (!sessionActive) {
           setIsAuthenticated(false);
           router.replace("/login");
@@ -32,17 +51,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }
 
         const cashier = JSON.parse(sessionActive);
-        setIsAuthenticated(true);
+        const role = cashier?.role?.trim().toUpperCase();
+        const isOwner = role === "OWNER" || role === "MANAGER";
+        const KASIR_ALLOWED_ROUTES = ["/pos", "/bazaar-orders", "/po"];
 
         // RBAC Route Guard:
         // Role KASIR atau non-owner DILARANG keras mengakses modul admin, keuangan, stok, dan pengaturan
-        const isOwner = cashier?.role === "OWNER" || cashier?.role === "MANAGER";
-        const KASIR_ALLOWED_ROUTES = ["/pos", "/bazaar-orders", "/po"];
-
         if (!isOwner && !KASIR_ALLOWED_ROUTES.includes(pathname)) {
           console.warn(`[RBAC] Akses Ditolak: Role "${cashier?.role}" mencoba mengakses "${pathname}". Mengalihkan ke /pos.`);
+          setIsAuthenticated(false);
           router.replace("/pos");
+          return;
         }
+
+        setIsAuthenticated(true);
       } catch (e) {
         setIsAuthenticated(false);
         router.replace("/login");
@@ -77,8 +99,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Show loading splash while verifying session
-  if (authChecking || !isAuthenticated) {
+  // Show loading splash while verifying session or redirecting unauthorized cashier
+  if (authChecking || !isAuthenticated || isRestrictedForCashier) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
         <div className="flex flex-col items-center gap-4 text-center">

@@ -306,9 +306,13 @@ export default function ProductsPage() {
     setSubmittingProd(true);
 
     try {
-      const activeVariant = prodVariants.find((v) => v.isActive);
-      const effectivePrice = prodPrice > 0 ? prodPrice : (activeVariant?.price || 0);
-      const effectiveCost = prodCost > 0 ? prodCost : (activeVariant?.cost || 0);
+      const primaryVariant = prodVariants.find((v) => v.isActive) || prodVariants[0];
+      const effectivePrice = editingProduct
+        ? (primaryVariant ? primaryVariant.price : prodPrice)
+        : (prodPrice > 0 ? prodPrice : (primaryVariant?.price || 0));
+      const effectiveCost = editingProduct
+        ? (primaryVariant ? primaryVariant.cost : prodCost)
+        : (prodCost > 0 ? prodCost : (primaryVariant?.cost || 0));
 
       const url = "/api/products";
       const method = editingProduct ? "PUT" : "POST";
@@ -616,12 +620,36 @@ export default function ProductsPage() {
                         </td>
 
                         <td className="py-3 px-3">
-                          <span className="font-black text-sm text-emerald-800 tabular-nums">
-                            {formatRupiah(profit)}
-                          </span>{" "}
-                          <span className="text-xs text-emerald-900 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded-md font-black tabular-nums">
-                            +{margin}%
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-black text-sm text-emerald-800 tabular-nums">
+                              {formatRupiah(profit)}
+                            </span>
+                            <span className="text-xs text-emerald-900 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded-md font-black tabular-nums">
+                              +{margin}%
+                            </span>
+                          </div>
+                          {p.variants && p.variants.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1 max-w-[260px]">
+                              {p.variants
+                                .filter((v: any) => v.isActive)
+                                .map((v: any) => {
+                                  const varProfit = v.price - v.cost;
+                                  const varMargin = v.price > 0 ? Math.round((varProfit / v.price) * 100) : 0;
+                                  return (
+                                    <span
+                                      key={v.id || `${v.packaging}-${v.size}`}
+                                      className="inline-flex items-center text-xs font-bold bg-emerald-50 text-emerald-950 border border-emerald-300 px-2 py-0.5 rounded-md shadow-2xs tabular-nums"
+                                      title={`${v.packaging} ${v.size}: Margin ${formatRupiah(varProfit)} (${varMargin}%)`}
+                                    >
+                                      <span className="font-black text-emerald-950 mr-1">{v.size}:</span>
+                                      <span className="text-xs text-emerald-800 font-bold">
+                                        {formatRupiah(varProfit)} ({varMargin}%)
+                                      </span>
+                                    </span>
+                                  );
+                                })}
+                            </div>
+                          )}
                         </td>
 
                         <td className="py-3 px-3">
@@ -852,42 +880,46 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Harga Jual (Rp) *</label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={prodPrice || ""}
-                    onChange={(e) => setProdPrice(Number(e.target.value))}
-                    className="w-full text-xs p-2.5 rounded-xl bg-white text-slate-900 border border-slate-300 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
+              {!editingProduct && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">Harga Jual (Rp) *</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        value={prodPrice || ""}
+                        onChange={(e) => setProdPrice(Number(e.target.value))}
+                        className="w-full text-xs p-2.5 rounded-xl bg-white text-slate-900 border border-slate-300 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Modal / HPP (Rp)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={prodCost || ""}
-                    onChange={(e) => setProdCost(parseFloat(e.target.value) || 0)}
-                    className="w-full text-xs p-2.5 rounded-xl bg-white text-slate-900 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-              </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">Modal / HPP (Rp)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={prodCost || ""}
+                        onChange={(e) => setProdCost(parseFloat(e.target.value) || 0)}
+                        className="w-full text-xs p-2.5 rounded-xl bg-white text-slate-900 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
 
-              {/* Profit preview card */}
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between text-xs">
-                <div className="text-emerald-800">
-                  <span className="font-bold">Estimasi Keuntungan Standar: </span>
-                  {formatRupiah(marginNominal)} / {prodUnit}
-                </div>
-                <div className="font-black text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-300">
-                  Margin: {marginPercent}%
-                </div>
-              </div>
+                  {/* Profit preview card */}
+                  <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between text-xs">
+                    <div className="text-emerald-800">
+                      <span className="font-bold">Estimasi Keuntungan Standar: </span>
+                      {formatRupiah(marginNominal)} / {prodUnit}
+                    </div>
+                    <div className="font-black text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-300">
+                      Margin: {marginPercent}%
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Varian Ukuran & Kemasan */}
               <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2.5">

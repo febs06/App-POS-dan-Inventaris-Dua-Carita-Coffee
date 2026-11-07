@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { formatRupiah, formatDate } from "@/lib/format";
 import {
   Wallet,
+  Lock,
   TrendingUp,
   TrendingDown,
   ArrowUpRight,
@@ -98,6 +100,39 @@ const DEFAULT_RAB_MONTH_TABS = [
 ];
 
 export default function FinancePage() {
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+
+  // In-page RBAC authorization guard (defense-in-depth)
+  useEffect(() => {
+    try {
+      const saved =
+        sessionStorage.getItem("active_cashier") ||
+        localStorage.getItem("active_cashier");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setCurrentUser(parsed);
+        const role = parsed?.role?.trim().toUpperCase();
+        const isOwner = role === "OWNER" || role === "MANAGER";
+        if (!isOwner) {
+          setIsAuthorized(false);
+          router.replace("/pos");
+          return;
+        }
+        setIsAuthorized(true);
+      } else {
+        setCurrentUser(null);
+        setIsAuthorized(false);
+        router.replace("/login");
+      }
+    } catch {
+      setCurrentUser(null);
+      setIsAuthorized(false);
+      router.replace("/login");
+    }
+  }, [router]);
+
   // Mode View: "ledger" (Arus Kas Cash & QRIS) vs "rab" (Rencana Anggaran Biaya)
   const [activeMode, setActiveMode] = useState<"ledger" | "rab">("ledger");
 
@@ -297,12 +332,16 @@ export default function FinancePage() {
   };
 
   useEffect(() => {
-    fetchRecords();
-  }, [selectedAccount, selectedMonth, selectedType, selectedCategory, searchQuery]);
+    if (isAuthorized) {
+      fetchRecords();
+    }
+  }, [isAuthorized, selectedAccount, selectedMonth, selectedType, selectedCategory, searchQuery]);
 
   useEffect(() => {
-    fetchRabItems();
-  }, [selectedRabMonth, selectedFunder, rabSearchQuery]);
+    if (isAuthorized) {
+      fetchRabItems();
+    }
+  }, [isAuthorized, selectedRabMonth, selectedFunder, rabSearchQuery]);
 
   // Handle Submit Form Kas
   const handleSubmitKas = async (e: React.FormEvent) => {
@@ -469,6 +508,33 @@ export default function FinancePage() {
     }
     return { masuk, keluar, net: masuk - keluar };
   }, [records]);
+
+  // In-page RBAC guard: prevent rendering back-office finance data if unauthorized or pending
+  if (isAuthorized === false || currentUser?.role === "KASIR") {
+    return (
+      <div className="p-8 sm:p-12 text-center bg-white dark:bg-[#1c1512] rounded-3xl border border-slate-200 dark:border-[#2e231d] shadow-sm space-y-4 max-w-lg mx-auto mt-10">
+        <div className="h-14 w-14 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/20">
+          <Lock className="h-7 w-7" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+          Akses Terbatas: Khusus Owner / Admin
+        </h2>
+        <p className="text-xs text-slate-600 dark:text-stone-400 leading-relaxed">
+          Akun kasir tidak diizinkan mengakses buku kas, keuangan, dan rencana anggaran biaya back-office.
+        </p>
+        <button
+          onClick={() => router.push("/pos")}
+          className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition cursor-pointer"
+        >
+          Kembali ke Layar Kasir POS
+        </button>
+      </div>
+    );
+  }
+
+  if (isAuthorized === null) {
+    return null;
+  }
 
   return (
     <div className="space-y-6 pb-20">
