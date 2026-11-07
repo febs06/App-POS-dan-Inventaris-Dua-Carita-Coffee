@@ -45,7 +45,7 @@ const INVENTARIS_SECTIONS = [
   {
     title: "Operasional & Stok",
     items: [
-      { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/stock", label: "Manajemen Stok & Resep", icon: Boxes },
       { href: "/products", label: "Produk & Kategori", icon: UtensilsCrossed },
       { href: "/suppliers", label: "Master Supplier", icon: Truck },

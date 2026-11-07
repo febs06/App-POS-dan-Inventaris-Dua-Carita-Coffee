@@ -11,8 +11,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Dua Carita Coffee - Web Kasir POS, Pre-Order & Booth Event",
-  description: "Sistem kasir cerdas, manajemen pre-order WhatsApp, dan booth bazaar event terpadu.",
+  title: "Dua Carita Coffee - Ada Cerita di Setiap Seduhan",
+  description: "Portofolio & profil resmi Dua Carita Coffee Bandung. Kopi susu gula aren murni, racikan signature segar, dan pop-up booth bazaar.",
   icons: {
     icon: [
       { url: "/favicon.ico" },

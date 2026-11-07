@@ -12,9 +12,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const isPublicRoute = pathname === "/" || pathname === "/login";
 
   useEffect(() => {
-    if (pathname === "/login") {
+    if (isPublicRoute) {
       setAuthChecking(false);
       setIsAuthenticated(true);
       return;
@@ -58,7 +59,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     window.addEventListener("cashier-updated", handleCashierUpdated);
     return () => window.removeEventListener("cashier-updated", handleCashierUpdated);
-  }, [pathname, router]);
+  }, [pathname, router, isPublicRoute]);
+
+  if (pathname === "/") {
+    return (
+      <div className="min-h-screen bg-[#15100c] text-[#f7f2ea]">
+        {children}
+      </div>
+    );
+  }
 
   if (pathname === "/login") {
     return (
