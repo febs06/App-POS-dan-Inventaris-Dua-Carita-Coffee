@@ -73,7 +73,17 @@ export async function GET(req: NextRequest) {
         voucher: true,
         items: {
           include: {
-            product: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                cost: true,
+                unit: true,
+                categoryId: true,
+                isActive: true,
+              },
+            },
             variant: {
               include: {
                 ingredients: {
@@ -505,7 +515,17 @@ export async function POST(req: NextRequest) {
         voucher: true,
         items: {
           include: {
-            product: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                cost: true,
+                unit: true,
+                categoryId: true,
+                isActive: true,
+              },
+            },
             variant: {
               include: {
                 ingredients: {
@@ -678,7 +698,17 @@ export async function PUT(req: NextRequest) {
         event: true,
         items: {
           include: {
-            product: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                cost: true,
+                unit: true,
+                categoryId: true,
+                isActive: true,
+              },
+            },
             variant: {
               include: {
                 ingredients: {
