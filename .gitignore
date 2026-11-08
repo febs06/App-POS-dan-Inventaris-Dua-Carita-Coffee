@@ -43,3 +43,8 @@ next-env.d.ts
 prisma/*.db*
 prisma/*.db-journal
 
+# agents & scratch
+.agents/
+scripts/verify_*
+
+
