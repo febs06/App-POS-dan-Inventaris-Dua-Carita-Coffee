@@ -150,7 +150,7 @@ select:-webkit-autofill {
 }
 
 /* ==========================================================================
-   Print Styling: Struk Thermal 80mm & Rekap Laporan Penjualan
+   Print Styling: Struk Thermal 58mm & Rekap Laporan Penjualan
    ========================================================================== */
 @media print {
   /* Sembunyikan elemen navigasi umum dan kontrol UI yang tidak perlu dicetak */
@@ -162,22 +162,22 @@ select:-webkit-autofill {
   }
 
   @page {
-    size: 80mm auto;
+    size: 58mm auto;
     margin: 0mm;
   }
 
   body {
     background-color: #ffffff !important;
     color: #000000 !important;
-    font-size: 11px;
+    font-size: 10px;
     padding: 0 !important;
     margin: 0 !important;
   }
 
-  /* 1. Mode Cetak Struk (Ketika Modal Struk Aktif) */
+  /* 1. Mode Cetak Struk Thermal 58mm (Ketika Modal Struk Aktif) */
   body.modal-receipt-open {
-    width: 80mm !important;
-    max-width: 80mm !important;
+    width: 58mm !important;
+    max-width: 58mm !important;
     padding: 0 !important;
     margin: 0 auto !important;
   }
@@ -194,15 +194,15 @@ select:-webkit-autofill {
 
   #printable-receipt {
     position: static !important;
-    width: 78mm !important;
-    max-width: 78mm !important;
+    width: 54mm !important;
+    max-width: 54mm !important;
     margin: 0 auto !important;
-    padding: 4mm 2mm !important;
+    padding: 2mm 1.5mm !important;
     background: #ffffff !important;
     color: #000000 !important;
-    font-family: monospace, "Courier New", Courier !important;
-    font-size: 11px !important;
-    line-height: 1.35 !important;
+    font-family: "Courier New", Courier, monospace !important;
+    font-size: 10px !important;
+    line-height: 1.3 !important;
   }
 
   #printable-receipt .flex {

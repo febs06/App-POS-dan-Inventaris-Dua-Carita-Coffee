@@ -374,6 +374,43 @@ export default function PosPage() {
     setIsCheckoutOpen(true);
   };
 
+  // Dynamic Quick Cash Options based on totalAmount (adopsi pola kasir-umkm)
+  const quickCashOptions = useMemo(() => {
+    if (totalAmount <= 0) return [];
+    const candidates = [
+      totalAmount, // Uang Pas
+      Math.ceil(totalAmount / 5000) * 5000,
+      Math.ceil(totalAmount / 10000) * 10000,
+      Math.ceil(totalAmount / 20000) * 20000,
+      Math.ceil(totalAmount / 50000) * 50000,
+      100000,
+      200000,
+    ];
+    return Array.from(new Set(candidates.filter((v) => v >= totalAmount)))
+      .sort((a, b) => a - b)
+      .slice(0, 5);
+  }, [totalAmount]);
+
+  // Touch Numpad Press Handler untuk layar sentuh Booth
+  const handleNumpadPress = (key: string) => {
+    let currentStr = String(cashGiven || "");
+    if (cashGiven === totalAmount) {
+      currentStr = "";
+    }
+    if (key === "hapus") {
+      const updated = currentStr.slice(0, -1);
+      setCashGiven(updated ? parseInt(updated, 10) : 0);
+    } else if (key === "000") {
+      if (currentStr && currentStr.length < 9) {
+        setCashGiven(parseInt(currentStr + "000", 10));
+      }
+    } else {
+      if (currentStr.length < 9) {
+        setCashGiven(parseInt((currentStr + key).replace(/^0+/, "") || "0", 10));
+      }
+    }
+  };
+
   // Process Checkout
   const handleConfirmPayment = async () => {
     if (processingOrder) return;
@@ -983,58 +1020,141 @@ export default function PosPage() {
 
             {/* Cash Calculator */}
             {paymentMethod === "cash" && (
-              <div className="space-y-2 pt-2 border-t border-[#e7ded5] dark:border-[#2e231d]">
-                <label className="text-xs font-bold text-stone-700 dark:text-stone-300 block">Uang Diterima (Cash)</label>
-                <input
-                  type="number"
-                  value={cashGiven || ""}
-                  onChange={(e) => setCashGiven(Number(e.target.value))}
-                  className="w-full text-lg font-black px-3 py-2 rounded-xl bg-white dark:bg-[#251b16] border border-[#d8ccc0] dark:border-[#382b23] focus:outline-none focus:ring-2 focus:ring-[#5c3826] text-stone-900 dark:text-stone-100 tabular-nums"
-                />
-
-                {/* Quick cash pills */}
-                <div className="flex flex-wrap gap-1.5 pt-1">
+              <div className="space-y-3 pt-2 border-t border-[#e7ded5] dark:border-[#2e231d]">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-stone-700 dark:text-stone-300">
+                    Uang Diterima (Cash)
+                  </label>
                   <button
                     type="button"
                     onClick={() => setCashGiven(totalAmount)}
-                    className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#f0e8df] dark:bg-[#2e231d] hover:bg-[#e4dacd] text-stone-800 dark:text-stone-200 tabular-nums cursor-pointer"
+                    className="text-[11px] font-bold text-amber-700 dark:text-amber-400 hover:underline cursor-pointer"
                   >
-                    Uang Pas
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCashGiven(50000)}
-                    className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#f0e8df] dark:bg-[#2e231d] hover:bg-[#e4dacd] text-stone-800 dark:text-stone-200 tabular-nums cursor-pointer"
-                  >
-                    Rp 50.000
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCashGiven(100000)}
-                    className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#f0e8df] dark:bg-[#2e231d] hover:bg-[#e4dacd] text-stone-800 dark:text-stone-200 tabular-nums cursor-pointer"
-                  >
-                    Rp 100.000
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCashGiven(200000)}
-                    className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#f0e8df] dark:bg-[#2e231d] hover:bg-[#e4dacd] text-stone-800 dark:text-stone-200 tabular-nums cursor-pointer"
-                  >
-                    Rp 200.000
+                    Reset ke Uang Pas
                   </button>
                 </div>
 
-                {/* Change */}
-                <div className="p-3 rounded-xl bg-[#faf8f5] dark:bg-[#251b16] border border-[#e7ded5] dark:border-[#382b23] flex justify-between items-center text-xs font-bold mt-2">
-                  <span className="text-stone-600 dark:text-stone-400">Kembalian:</span>
-                  <span
-                    className={`text-base font-black tabular-nums ${cashGiven < totalAmount ? "text-rose-600" : "text-emerald-700 dark:text-emerald-400"
-                      }`}
-                  >
-                    {cashGiven < totalAmount
-                      ? `Kurang ${formatRupiah(totalAmount - cashGiven)}`
-                      : formatRupiah(cashGiven - totalAmount)}
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-stone-400 dark:text-stone-500">
+                    Rp
                   </span>
+                  <input
+                    type="number"
+                    value={cashGiven || ""}
+                    onChange={(e) => setCashGiven(Number(e.target.value))}
+                    className="w-full text-xl font-black pl-10 pr-3 py-2 rounded-xl bg-white dark:bg-[#251b16] border border-[#d8ccc0] dark:border-[#382b23] focus:outline-none focus:ring-2 focus:ring-[#5c3826] text-stone-900 dark:text-stone-100 tabular-nums shadow-xs"
+                    placeholder="0"
+                  />
+                </div>
+
+                {/* Quick cash pills (Dinamis dari nilai tagihan, pola kasir-umkm) */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+                      Uang Cepat (Sesuai Tagihan)
+                    </span>
+                    <span className="text-[10px] text-stone-400">
+                      Tagihan: {formatRupiah(totalAmount)}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {quickCashOptions.map((amount) => {
+                      const isPas = amount === totalAmount;
+                      const isSelected = cashGiven === amount;
+                      return (
+                        <button
+                          key={amount}
+                          type="button"
+                          onClick={() => setCashGiven(amount)}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer tabular-nums ${
+                            isSelected
+                              ? "bg-amber-500 text-stone-950 font-black shadow-xs ring-2 ring-amber-400/50"
+                              : "bg-[#f0e8df] dark:bg-[#2e231d] hover:bg-[#e4dacd] dark:hover:bg-[#3a2d25] text-stone-800 dark:text-stone-200"
+                          }`}
+                        >
+                          {isPas ? `Uang Pas (${formatRupiah(amount)})` : formatRupiah(amount)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Touch Numpad (Untuk layar sentuh HP / Tablet Booth) */}
+                <div className="space-y-1 pt-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+                    Keypad Kasir
+                  </span>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {["1", "2", "3", "4", "5", "6", "7", "8", "9", "000", "0", "hapus"].map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => handleNumpadPress(k)}
+                        className={`py-2 rounded-xl text-sm font-bold transition flex items-center justify-center cursor-pointer ${
+                          k === "hapus"
+                            ? "bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 hover:bg-rose-200 active:scale-95"
+                            : k === "000"
+                            ? "bg-stone-200 dark:bg-stone-800 text-stone-800 dark:text-stone-200 hover:bg-stone-300 active:scale-95"
+                            : "bg-white dark:bg-[#251b16] border border-[#e7ded5] dark:border-[#382b23] text-stone-800 dark:text-stone-200 hover:bg-[#f5ede4] active:scale-95 shadow-xs"
+                        }`}
+                      >
+                        {k === "hapus" ? (
+                          <span className="flex items-center gap-1 text-xs">⌫ Hapus</span>
+                        ) : (
+                          k
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Change */}
+                <div
+                  className={`p-3.5 rounded-xl border flex justify-between items-center text-xs font-bold transition-colors ${
+                    cashGiven < totalAmount
+                      ? "bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/40"
+                      : cashGiven === totalAmount
+                      ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/40"
+                      : "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/40"
+                  }`}
+                >
+                  <div className="space-y-0.5">
+                    <span
+                      className={`block font-semibold ${
+                        cashGiven < totalAmount
+                          ? "text-rose-700 dark:text-rose-400"
+                          : cashGiven === totalAmount
+                          ? "text-amber-800 dark:text-amber-300"
+                          : "text-emerald-800 dark:text-emerald-300"
+                      }`}
+                    >
+                      {cashGiven < totalAmount
+                        ? "Uang Kurang:"
+                        : cashGiven === totalAmount
+                        ? "Status Pembayaran:"
+                        : "Kembalian Kasir:"}
+                    </span>
+                    <span className="text-[10px] text-stone-500">
+                      Tagihan: {formatRupiah(totalAmount)}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span
+                      className={`text-lg font-black tabular-nums block ${
+                        cashGiven < totalAmount
+                          ? "text-rose-600 dark:text-rose-400"
+                          : cashGiven === totalAmount
+                          ? "text-amber-700 dark:text-amber-400"
+                          : "text-emerald-700 dark:text-emerald-400"
+                      }`}
+                    >
+                      {cashGiven < totalAmount
+                        ? `- ${formatRupiah(totalAmount - cashGiven)}`
+                        : cashGiven === totalAmount
+                        ? "✓ UANG PAS"
+                        : formatRupiah(cashGiven - totalAmount)}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}

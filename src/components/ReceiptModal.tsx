@@ -182,9 +182,9 @@ ${storeSetting.phoneNumber ? `*Hubungi Kami (WhatsApp): ${storeSetting.phoneNumb
           </button>
         </div>
 
-        {/* Receipt Content to Print (Styled for 80mm Thermal) */}
+        {/* Receipt Content to Print (Styled for 58mm Thermal) */}
         <div
-          className="p-6 overflow-y-auto font-mono text-xs text-slate-900 bg-white"
+          className="p-5 overflow-y-auto font-mono text-xs text-slate-900 bg-white max-w-[340px] mx-auto shadow-xs border border-slate-200/60 rounded-xl"
           id="printable-receipt"
           ref={receiptRef}
         >
@@ -360,7 +360,7 @@ ${storeSetting.phoneNumber ? `*Hubungi Kami (WhatsApp): ${storeSetting.phoneNumb
             className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold text-xs hover:opacity-90 transition shadow-xs cursor-pointer"
           >
             <Printer className="h-4 w-4" />
-            Cetak Struk (80mm)
+            Cetak Struk (58mm Thermal)
           </button>
 
           <a
