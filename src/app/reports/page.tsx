@@ -50,7 +50,7 @@ export default function ReportsPage() {
   const loadReports = async () => {
     setLoading(true);
     try {
-      let url = "/api/orders?";
+      let url = "/api/orders?includeIngredients=true";
       if (orderSource !== "all") url += `&orderSource=${orderSource}`;
       if (selectedEventId !== "all") url += `&eventId=${selectedEventId}`;
       if (paymentStatus !== "all") url += `&paymentStatus=${paymentStatus}`;

@@ -64,9 +64,14 @@ export async function GET(req: NextRequest) {
         ? "asc"
         : "desc";
 
+    const includeIngredients = searchParams.get("includeIngredients") === "true";
+    const limitParam = searchParams.get("limit");
+    const take = limitParam ? Math.min(parseInt(limitParam, 10), 500) : (searchParams.get("all") === "true" ? undefined : 300);
+
     const orders = await prisma.order.findMany({
       where,
       orderBy: { createdAt: sortDirection },
+      take,
       include: {
         customer: true,
         event: true,
@@ -84,15 +89,27 @@ export async function GET(req: NextRequest) {
                 isActive: true,
               },
             },
-            variant: {
-              include: {
-                ingredients: {
+            variant: includeIngredients
+              ? {
                   include: {
-                    rawMaterial: true,
+                    ingredients: {
+                      include: {
+                        rawMaterial: true,
+                      },
+                    },
+                  },
+                }
+              : {
+                  select: {
+                    id: true,
+                    packaging: true,
+                    size: true,
+                    price: true,
+                    cost: true,
+                    stock: true,
+                    isActive: true,
                   },
                 },
-              },
-            },
           },
         },
         payments: true,

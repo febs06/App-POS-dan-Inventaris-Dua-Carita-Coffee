@@ -40,8 +40,24 @@ export default function BazaarOrdersPage() {
 
   useEffect(() => {
     loadOrders();
-    const interval = setInterval(loadOrders, 15000); // Polling auto-refresh every 15s during busy bazaar
-    return () => clearInterval(interval);
+    // Smart Polling: hanya polling saat tab aktif terlihat di layar (hemat kuota database)
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        loadOrders();
+      }
+    }, 45000);
+
+    const onVisibilityChange = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        loadOrders();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [selectedEventId]);
 
   const loadEvents = async () => {
@@ -233,6 +249,15 @@ export default function BazaarOrdersPage() {
               Live Bazaar Feed
             </span>
             <span className="text-xs text-slate-400">&bull; Auto-refresh aktif</span>
+            <button
+              type="button"
+              onClick={() => loadOrders()}
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-stone-500 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 px-2 py-0.5 rounded-lg transition cursor-pointer ml-1"
+              title="Perbarui Data Antrean"
+            >
+              <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin text-amber-600" : ""}`} />
+              <span>Refresh</span>
+            </button>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-stone-900 dark:text-white tracking-tight flex items-center gap-2.5">
             <ShoppingBag className="h-6 w-6 text-amber-600" />
