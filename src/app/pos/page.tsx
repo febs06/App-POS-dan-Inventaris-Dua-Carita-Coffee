@@ -20,6 +20,7 @@ import {
   Percent,
   Coffee,
   ShoppingBag,
+  Store,
 } from "lucide-react";
 import ReceiptModal from "@/components/ReceiptModal";
 import PosProductModal from "@/components/PosProductModal";
@@ -59,6 +60,40 @@ export default function PosPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Helper untuk menentukan event aktif secara otomatis dan konsisten
+  const resolveInitialEvent = (evList: any[]): string => {
+    if (!Array.isArray(evList) || evList.length === 0) return "";
+    try {
+      const saved = localStorage.getItem("pos_selected_event_id");
+      if (saved && evList.some((e: any) => e.id === saved)) {
+        return saved;
+      }
+    } catch (e) {}
+
+    // Prioritaskan event yang sedang berlangsung hari ini (status === "ongoing")
+    const ongoing = evList.find((e: any) => e.status === "ongoing");
+    if (ongoing) {
+      try {
+        localStorage.setItem("pos_selected_event_id", ongoing.id);
+      } catch (e) {}
+      return ongoing.id;
+    }
+
+    // Default ke event pertama jika tidak ada yang ongoing
+    return evList[0]?.id || "";
+  };
+
+  const handleSelectEvent = (id: string) => {
+    setSelectedEventId(id);
+    try {
+      localStorage.setItem("pos_selected_event_id", id);
+    } catch (e) {}
+  };
+
+  const selectedEvent = useMemo(() => {
+    return events.find((e) => e.id === selectedEventId) || null;
+  }, [events, selectedEventId]);
 
   // Product Order Modal state (Fast Direct Order Input)
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
@@ -101,9 +136,8 @@ export default function PosPage() {
         if (cachedEvs) {
           const parsedEvs = JSON.parse(cachedEvs);
           setEvents(parsedEvs);
-          const ongoing = parsedEvs.find((e: any) => e.status === "ongoing");
-          if (ongoing) setSelectedEventId(ongoing.id);
-          else if (parsedEvs.length > 0) setSelectedEventId(parsedEvs[0].id);
+          const chosenId = resolveInitialEvent(parsedEvs);
+          if (chosenId) setSelectedEventId(chosenId);
         }
         setLoading(false);
       }
@@ -134,9 +168,8 @@ export default function PosPage() {
       if (Array.isArray(evs)) {
         setEvents(evs);
         sessionStorage.setItem("pos_cache_evs", JSON.stringify(evs));
-        const ongoing = evs.find((e: any) => e.status === "ongoing");
-        if (ongoing) setSelectedEventId(ongoing.id);
-        else if (evs.length > 0) setSelectedEventId(evs[0].id);
+        const chosenId = resolveInitialEvent(evs);
+        if (chosenId) setSelectedEventId(chosenId);
       }
     } catch (err) {
       console.error("Failed to load POS data:", err);
@@ -485,17 +518,17 @@ export default function PosPage() {
       {/* Top Bar: Event Selector & Search */}
       <div className="bg-white dark:bg-[#1c1512] rounded-2xl border border-[#e7ded5] dark:border-[#2e231d] shadow-xs p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-emerald-600" />
-          <span className="text-xs font-bold text-stone-700 dark:text-stone-300">Lokasi Event Kasir:</span>
+          <Calendar className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span className="text-xs font-bold text-stone-700 dark:text-stone-300 shrink-0">Lokasi Event Kasir:</span>
           <select
             value={selectedEventId}
-            onChange={(e) => setSelectedEventId(e.target.value)}
-            className="text-xs font-semibold bg-white dark:bg-[#251b16] text-stone-900 dark:text-stone-100 border border-[#d8ccc0] dark:border-[#382b23] rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5c3826]"
+            onChange={(e) => handleSelectEvent(e.target.value)}
+            className="text-xs font-semibold bg-white dark:bg-[#251b16] text-stone-900 dark:text-stone-100 border border-[#d8ccc0] dark:border-[#382b23] rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5c3826] cursor-pointer"
           >
             <option value="">-- Tanpa Event (Booth Mandiri) --</option>
             {events.map((ev) => (
               <option key={ev.id} value={ev.id}>
-                {ev.name} {ev.status === "ongoing" ? "🟢 (Ongoing)" : ""}
+                {ev.name} {ev.location ? `• ${ev.location}` : ""} {ev.status === "ongoing" ? "🟢 (Ongoing)" : ""}
               </option>
             ))}
           </select>
@@ -936,6 +969,45 @@ export default function PosPage() {
               <div className="p-3.5 bg-[#fbf5ee] dark:bg-[#251b16] rounded-2xl border border-[#e7ded5] dark:border-[#382b23] text-center">
                 <span className="text-xs text-[#5c3826] dark:text-amber-300 font-bold block">Total yang harus dibayar</span>
                 <span className="text-3xl font-black text-[#5c3826] dark:text-amber-400 tabular-nums">{formatRupiah(totalAmount)}</span>
+              </div>
+
+              {/* Lokasi Event / Bazaar Selector */}
+              <div className="space-y-1.5 p-3 rounded-2xl bg-[#fbf5ee] dark:bg-[#251b16] border border-[#d8ccc0] dark:border-[#382b23]">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
+                    <Store className="h-4 w-4 text-[#5c3826] dark:text-amber-400 shrink-0" />
+                    <span>Lokasi Penjualan Bazaar</span>
+                  </label>
+                  {selectedEvent?.status === "ongoing" && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Sedang Berlangsung
+                    </span>
+                  )}
+                </div>
+                <select
+                  value={selectedEventId}
+                  onChange={(e) => handleSelectEvent(e.target.value)}
+                  className="w-full text-xs font-bold bg-white dark:bg-[#1a1310] text-stone-900 dark:text-stone-100 border border-[#d8ccc0] dark:border-[#382b23] rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#5c3826] cursor-pointer"
+                >
+                  <option value="">-- Tanpa Event (Booth Mandiri) --</option>
+                  {events.map((ev) => (
+                    <option key={ev.id} value={ev.id}>
+                      {ev.name} {ev.location ? `• ${ev.location}` : ""} {ev.status === "ongoing" ? "🟢 (Ongoing Hari Ini)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <div className="text-[11px] text-stone-600 dark:text-stone-400">
+                  {selectedEvent ? (
+                    <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-semibold">
+                      <span>📍</span> Tercatat di: <strong>{selectedEvent.name}</strong> {selectedEvent.location ? `(${selectedEvent.location})` : ""}
+                    </span>
+                  ) : (
+                    <span className="text-amber-700 dark:text-amber-400 font-medium">
+                      ⚠️ Dicatat sebagai <strong>Booth Mandiri</strong> (di luar event bazaar).
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Input Nama Pelanggan Direct */}

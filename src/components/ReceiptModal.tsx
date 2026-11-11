@@ -100,7 +100,7 @@ Kasir     : ${order.cashierName || "Kasir Booth"}
 Tipe      : ${isPO ? "Pre-Order (PO)" : "Direct POS"}
 Pelanggan : ${customerDisplayName}
 Status    : ${getStatusLabel(order.status)}
-${order.event ? `Event     : ${order.event.name}\n` : ""}${
+${order.event ? `Event     : ${order.event.name}${order.event.location ? ` (${order.event.location})` : ""}\n` : ""}${
     cleanPhone ? `No. WA    : ${cleanPhone}\n` : ""
   }${order.pickupDate ? `Tgl Ambil : ${formatDate(order.pickupDate)}\n` : ""}${
     order.pickupMethod ? `Metode    : ${order.pickupMethod}\n` : ""
@@ -216,7 +216,7 @@ ${storeSetting.phoneNumber ? `*Hubungi Kami (WhatsApp): ${storeSetting.phoneNumb
             )}
             {order.event && (
               <p className="text-[11px] font-bold text-slate-800 font-sans mt-1">
-                📍 {order.event.name}
+                📍 {order.event.name} {order.event.location ? `(${order.event.location})` : ""}
               </p>
             )}
           </div>

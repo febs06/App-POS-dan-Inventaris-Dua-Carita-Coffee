@@ -508,8 +508,14 @@ export default function BazaarOrdersPage() {
                       <User className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                       <span className="truncate">{custName}</span>
                     </div>
-                    <div className="text-[11px] font-medium text-slate-500">
-                      {order.event?.name || "Booth Mandiri"}
+                    <div className="text-[11px] font-medium text-slate-500 truncate max-w-[160px]">
+                      {order.event ? (
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-400" title={`${order.event.name}${order.event.location ? ` (${order.event.location})` : ""}`}>
+                          📍 {order.event.name}
+                        </span>
+                      ) : (
+                        <span className="text-stone-400">Booth Mandiri</span>
+                      )}
                     </div>
                   </div>
 

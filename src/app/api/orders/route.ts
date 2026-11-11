@@ -346,6 +346,19 @@ export async function POST(req: NextRequest) {
     // Kasir name: prioritaskan session resmi, fallback ke body
     const finalCashierName = session ? session.name : bodyCashierName || "Kasir Booth";
 
+    // Server-side fallback: Jika kasir POS membuat order langsung (DIRECT) tanpa menyertakan eventId spesifik,
+    // otomatis hubungkan ke event yang sedang berlangsung (status: "ongoing") agar pesanan tidak salah masuk Booth Mandiri.
+    let finalEventId = eventId || null;
+    if (!finalEventId && orderSource === "DIRECT") {
+      const activeOngoingEvent = await prisma.event.findFirst({
+        where: { status: "ongoing" },
+        select: { id: true },
+      });
+      if (activeOngoingEvent) {
+        finalEventId = activeOngoingEvent.id;
+      }
+    }
+
     const orderNumber = generateOrderNumber(orderSource === "PO" ? "PO" : "DIR");
 
     // Hitung total kebutuhan bahan baku per material strictly dari variant.ingredients
@@ -417,7 +430,7 @@ export async function POST(req: NextRequest) {
           data: {
             orderNumber,
             orderSource,
-            eventId: eventId || null,
+            eventId: finalEventId,
             customerId: customerId || null,
             customerName: customerName?.trim() || null,
             status: initialStatus,
@@ -480,7 +493,7 @@ export async function POST(req: NextRequest) {
             productId: item.productId,
             changeQty: -item.qty,
             reason: "terjual",
-            eventId: eventId || null,
+            eventId: finalEventId,
           })),
         });
 
