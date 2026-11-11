@@ -121,58 +121,91 @@ export default function PosPage() {
   const [completedOrder, setCompletedOrder] = useState<any>(null);
 
   useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  const loadInitialData = async () => {
-    // 1. Render data seketika dari session cache (0ms instant loading)
+    // 1. Render data seketika dari session cache jika ada (0ms instant loading)
     try {
-      const cachedProds = sessionStorage.getItem("pos_cache_prods");
-      const cachedCats = sessionStorage.getItem("pos_cache_cats");
       const cachedEvs = sessionStorage.getItem("pos_cache_evs");
-      if (cachedProds && cachedCats) {
-        setProducts(JSON.parse(cachedProds));
-        setCategories(JSON.parse(cachedCats));
-        if (cachedEvs) {
-          const parsedEvs = JSON.parse(cachedEvs);
+      if (cachedEvs) {
+        const parsedEvs = JSON.parse(cachedEvs);
+        if (Array.isArray(parsedEvs) && parsedEvs.length > 0) {
           setEvents(parsedEvs);
           const chosenId = resolveInitialEvent(parsedEvs);
           if (chosenId) setSelectedEventId(chosenId);
         }
-        setLoading(false);
+      }
+      const cachedCats = sessionStorage.getItem("pos_cache_cats");
+      if (cachedCats) {
+        const parsedCats = JSON.parse(cachedCats);
+        if (Array.isArray(parsedCats)) setCategories(parsedCats);
+      }
+      const cachedProds = sessionStorage.getItem("pos_cache_prods");
+      if (cachedProds) {
+        const parsedProds = JSON.parse(cachedProds);
+        if (Array.isArray(parsedProds)) {
+          setProducts(parsedProds);
+          setLoading(false);
+        }
       }
     } catch (e) {}
 
-    // 2. Ambil data terbaru di background tanpa membuat UI macet
+    // 2. Ambil data terbaru secara independen agar jika satu API lambat/kuota penyimpanan penuh, event tetap dimuat sempurna
+    loadEvents();
+    loadCategories();
+    loadProducts();
+
+    const onEventUpdated = () => loadEvents();
+    window.addEventListener("event-updated", onEventUpdated);
+    return () => window.removeEventListener("event-updated", onEventUpdated);
+  }, []);
+
+  const loadEvents = async () => {
     try {
-      const [prodRes, catRes, evRes] = await Promise.all([
-        fetch("/api/products?activeOnly=true"),
-        fetch("/api/categories"),
-        fetch("/api/events"),
-      ]);
-
-      const [prods, cats, evs] = await Promise.all([
-        prodRes.json(),
-        catRes.json(),
-        evRes.json(),
-      ]);
-
-      if (Array.isArray(prods)) {
-        setProducts(prods);
-        sessionStorage.setItem("pos_cache_prods", JSON.stringify(prods));
-      }
-      if (Array.isArray(cats)) {
-        setCategories(cats);
-        sessionStorage.setItem("pos_cache_cats", JSON.stringify(cats));
-      }
-      if (Array.isArray(evs)) {
+      const res = await fetch("/api/events");
+      const evs = await res.json();
+      if (Array.isArray(evs) && evs.length > 0) {
         setEvents(evs);
-        sessionStorage.setItem("pos_cache_evs", JSON.stringify(evs));
+        try {
+          sessionStorage.setItem("pos_cache_evs", JSON.stringify(evs));
+        } catch (e) {}
         const chosenId = resolveInitialEvent(evs);
         if (chosenId) setSelectedEventId(chosenId);
       }
     } catch (err) {
-      console.error("Failed to load POS data:", err);
+      console.error("Failed to load events:", err);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const res = await fetch("/api/categories");
+      const cats = await res.json();
+      if (Array.isArray(cats)) {
+        setCategories(cats);
+        try {
+          sessionStorage.setItem("pos_cache_cats", JSON.stringify(cats));
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.error("Failed to load categories:", err);
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const res = await fetch("/api/products?activeOnly=true");
+      const prods = await res.json();
+      if (Array.isArray(prods)) {
+        setProducts(prods);
+        try {
+          // Jangan cache base64 image berukuran besar ke sessionStorage agar tidak melebihi kuota 5MB browser
+          const leanProds = prods.map((p: any) => ({
+            ...p,
+            imageUrl: p.imageUrl && p.imageUrl.startsWith("data:") ? null : p.imageUrl,
+          }));
+          sessionStorage.setItem("pos_cache_prods", JSON.stringify(leanProds));
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.error("Failed to load products:", err);
     } finally {
       setLoading(false);
     }
@@ -505,7 +538,7 @@ export default function PosPage() {
       setCustomerName("");
       setOrderStatus("diproses");
       // Reload products to refresh stock
-      loadInitialData();
+      loadProducts();
     } catch (err: any) {
       alert(err.message);
     } finally {
