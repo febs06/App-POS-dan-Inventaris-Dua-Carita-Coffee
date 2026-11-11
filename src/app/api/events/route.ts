@@ -33,7 +33,11 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json(enriched);
+    return NextResponse.json(enriched, {
+      headers: {
+        "Cache-Control": "public, s-maxage=10, stale-while-revalidate=59",
+      },
+    });
   } catch (error) {
     console.error("Failed to fetch events:", error);
     return NextResponse.json({ error: "Gagal mengambil data event" }, { status: 500 });

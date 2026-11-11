@@ -107,7 +107,11 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json(enriched);
+    return NextResponse.json(enriched, {
+      headers: {
+        "Cache-Control": "public, s-maxage=10, stale-while-revalidate=59",
+      },
+    });
   } catch (error) {
     console.error("Failed to fetch products:", error);
     return NextResponse.json({ error: "Gagal mengambil data produk" }, { status: 500 });

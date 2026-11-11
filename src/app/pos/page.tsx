@@ -69,14 +69,14 @@ export default function PosPage() {
       if (saved && evList.some((e: any) => e.id === saved)) {
         return saved;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // Prioritaskan event yang sedang berlangsung hari ini (status === "ongoing")
     const ongoing = evList.find((e: any) => e.status === "ongoing");
     if (ongoing) {
       try {
         localStorage.setItem("pos_selected_event_id", ongoing.id);
-      } catch (e) {}
+      } catch (e) { }
       return ongoing.id;
     }
 
@@ -88,7 +88,7 @@ export default function PosPage() {
     setSelectedEventId(id);
     try {
       localStorage.setItem("pos_selected_event_id", id);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const selectedEvent = useMemo(() => {
@@ -145,7 +145,7 @@ export default function PosPage() {
           setLoading(false);
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // 2. Ambil data terbaru secara independen agar jika satu API lambat/kuota penyimpanan penuh, event tetap dimuat sempurna
     loadEvents();
@@ -165,7 +165,7 @@ export default function PosPage() {
         setEvents(evs);
         try {
           sessionStorage.setItem("pos_cache_evs", JSON.stringify(evs));
-        } catch (e) {}
+        } catch (e) { }
         const chosenId = resolveInitialEvent(evs);
         if (chosenId) setSelectedEventId(chosenId);
       }
@@ -182,7 +182,7 @@ export default function PosPage() {
         setCategories(cats);
         try {
           sessionStorage.setItem("pos_cache_cats", JSON.stringify(cats));
-        } catch (e) {}
+        } catch (e) { }
       }
     } catch (err) {
       console.error("Failed to load categories:", err);
@@ -202,7 +202,7 @@ export default function PosPage() {
             imageUrl: p.imageUrl && p.imageUrl.startsWith("data:") ? null : p.imageUrl,
           }));
           sessionStorage.setItem("pos_cache_prods", JSON.stringify(leanProds));
-        } catch (e) {}
+        } catch (e) { }
       }
     } catch (err) {
       console.error("Failed to load products:", err);
@@ -490,7 +490,7 @@ export default function PosPage() {
           const parsed = JSON.parse(saved);
           if (parsed.name) cashierName = parsed.name;
         }
-      } catch (e) {}
+      } catch (e) { }
 
       const payload = {
         orderSource: "DIRECT",
@@ -602,11 +602,10 @@ export default function PosPage() {
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             <button
               onClick={() => setSelectedCategory("all")}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition cursor-pointer ${
-                selectedCategory === "all"
+              className={`px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition cursor-pointer ${selectedCategory === "all"
                   ? "bg-[#5c3826] text-white shadow-xs"
                   : "bg-white dark:bg-[#251b16] text-stone-600 dark:text-stone-300 border border-[#e7ded5] dark:border-[#382b23] hover:bg-[#faf8f5]"
-              }`}
+                }`}
             >
               Semua Menu ({products.length})
             </button>
@@ -614,11 +613,10 @@ export default function PosPage() {
               <button
                 key={c.id}
                 onClick={() => setSelectedCategory(c.id)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition cursor-pointer ${
-                  selectedCategory === c.id
+                className={`px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition cursor-pointer ${selectedCategory === c.id
                     ? "bg-[#5c3826] text-white shadow-xs"
                     : "bg-white dark:bg-[#251b16] text-stone-600 dark:text-stone-300 border border-[#e7ded5] dark:border-[#382b23] hover:bg-[#faf8f5]"
-                }`}
+                  }`}
               >
                 {c.name}
               </button>
@@ -646,8 +644,8 @@ export default function PosPage() {
                 const variantsList: any[] = (p.variants && p.variants.length > 0)
                   ? p.variants
                   : (p.allVariants && p.allVariants.length > 0)
-                  ? p.allVariants.flatMap((prod: any) => prod.variants || [])
-                  : [];
+                    ? p.allVariants.flatMap((prod: any) => prod.variants || [])
+                    : [];
 
                 const activeVariants = variantsList.filter((v: any) => v.isActive);
                 const hasVariantData = activeVariants.length > 0;
@@ -683,15 +681,14 @@ export default function PosPage() {
                     key={p.id}
                     type="button"
                     onClick={() => handleOpenProductModal(p)}
-                    className={`relative p-3.5 rounded-2xl bg-white dark:bg-[#251b16] border text-left flex flex-col justify-between transition group shadow-xs cursor-pointer ${
-                      isAllVariantsOutOfStock
+                    className={`relative p-3.5 rounded-2xl bg-white dark:bg-[#251b16] border text-left flex flex-col justify-between transition group shadow-xs cursor-pointer ${isAllVariantsOutOfStock
                         ? "opacity-60 grayscale-[30%] border-rose-200 bg-rose-50/20"
                         : isPartialVariantsOutOfStock
-                        ? "border-amber-400 hover:border-amber-500 hover:shadow-md"
-                        : totalInCart > 0
-                        ? "border-[#5c3826] ring-2 ring-[#5c3826]/20 shadow-md"
-                        : "border-[#e7ded5] dark:border-[#382b23] hover:border-[#5c3826] hover:shadow-md"
-                    }`}
+                          ? "border-amber-400 hover:border-amber-500 hover:shadow-md"
+                          : totalInCart > 0
+                            ? "border-[#5c3826] ring-2 ring-[#5c3826]/20 shadow-md"
+                            : "border-[#e7ded5] dark:border-[#382b23] hover:border-[#5c3826] hover:shadow-md"
+                      }`}
                   >
                     {/* Badge Stock & Category */}
                     <div className="flex items-center justify-between gap-1 mb-2">
@@ -1065,11 +1062,10 @@ export default function PosPage() {
                   <button
                     type="button"
                     onClick={() => setOrderStatus("selesai")}
-                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      orderStatus === "selesai"
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${orderStatus === "selesai"
                         ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
                         : "bg-[#faf8f5] dark:bg-[#251b16] text-stone-700 dark:text-stone-300 border-[#e7ded5] dark:border-[#382b23] hover:bg-[#ede5dc]"
-                    }`}
+                      }`}
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Langsung Selesai</span>
@@ -1077,11 +1073,10 @@ export default function PosPage() {
                   <button
                     type="button"
                     onClick={() => setOrderStatus("diproses")}
-                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      orderStatus === "diproses"
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${orderStatus === "diproses"
                         ? "bg-amber-500 text-stone-950 font-black border-amber-600 shadow-xs"
                         : "bg-[#faf8f5] dark:bg-[#251b16] text-stone-700 dark:text-stone-300 border-[#e7ded5] dark:border-[#382b23] hover:bg-[#ede5dc]"
-                    }`}
+                      }`}
                   >
                     <span>⏳ Sedang Diproses (Antre)</span>
                   </button>
@@ -1178,11 +1173,10 @@ export default function PosPage() {
                             key={amount}
                             type="button"
                             onClick={() => setCashGiven(amount)}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer tabular-nums ${
-                              isSelected
+                            className={`px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer tabular-nums ${isSelected
                                 ? "bg-amber-500 text-stone-950 font-black shadow-xs ring-2 ring-amber-400/50"
                                 : "bg-[#f0e8df] dark:bg-[#2e231d] hover:bg-[#e4dacd] dark:hover:bg-[#3a2d25] text-stone-800 dark:text-stone-200"
-                            }`}
+                              }`}
                           >
                             {isPas ? `Uang Pas (${formatRupiah(amount)})` : formatRupiah(amount)}
                           </button>
@@ -1202,13 +1196,12 @@ export default function PosPage() {
                           key={k}
                           type="button"
                           onClick={() => handleNumpadPress(k)}
-                          className={`py-2 rounded-xl text-sm font-bold transition flex items-center justify-center cursor-pointer ${
-                            k === "hapus"
+                          className={`py-2 rounded-xl text-sm font-bold transition flex items-center justify-center cursor-pointer ${k === "hapus"
                               ? "bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 hover:bg-rose-200 active:scale-95"
                               : k === "000"
-                              ? "bg-stone-200 dark:bg-stone-800 text-stone-800 dark:text-stone-200 hover:bg-stone-300 active:scale-95"
-                              : "bg-white dark:bg-[#251b16] border border-[#e7ded5] dark:border-[#382b23] text-stone-800 dark:text-stone-200 hover:bg-[#f5ede4] active:scale-95 shadow-xs"
-                          }`}
+                                ? "bg-stone-200 dark:bg-stone-800 text-stone-800 dark:text-stone-200 hover:bg-stone-300 active:scale-95"
+                                : "bg-white dark:bg-[#251b16] border border-[#e7ded5] dark:border-[#382b23] text-stone-800 dark:text-stone-200 hover:bg-[#f5ede4] active:scale-95 shadow-xs"
+                            }`}
                         >
                           {k === "hapus" ? (
                             <span className="flex items-center gap-1 text-xs">⌫ Hapus</span>
@@ -1222,29 +1215,27 @@ export default function PosPage() {
 
                   {/* Change */}
                   <div
-                    className={`p-3.5 rounded-xl border flex justify-between items-center text-xs font-bold transition-colors ${
-                      cashGiven < totalAmount
+                    className={`p-3.5 rounded-xl border flex justify-between items-center text-xs font-bold transition-colors ${cashGiven < totalAmount
                         ? "bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/40"
                         : cashGiven === totalAmount
-                        ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/40"
-                        : "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/40"
-                    }`}
+                          ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/40"
+                          : "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/40"
+                      }`}
                   >
                     <div className="space-y-0.5">
                       <span
-                        className={`block font-semibold ${
-                          cashGiven < totalAmount
+                        className={`block font-semibold ${cashGiven < totalAmount
                             ? "text-rose-700 dark:text-rose-400"
                             : cashGiven === totalAmount
-                            ? "text-amber-800 dark:text-amber-300"
-                            : "text-emerald-800 dark:text-emerald-300"
-                        }`}
+                              ? "text-amber-800 dark:text-amber-300"
+                              : "text-emerald-800 dark:text-emerald-300"
+                          }`}
                       >
                         {cashGiven < totalAmount
                           ? "Uang Kurang:"
                           : cashGiven === totalAmount
-                          ? "Status Pembayaran:"
-                          : "Kembalian Kasir:"}
+                            ? "Status Pembayaran:"
+                            : "Kembalian Kasir:"}
                       </span>
                       <span className="text-[10px] text-stone-500">
                         Tagihan: {formatRupiah(totalAmount)}
@@ -1252,19 +1243,18 @@ export default function PosPage() {
                     </div>
                     <div className="text-right">
                       <span
-                        className={`text-lg font-black tabular-nums block ${
-                          cashGiven < totalAmount
+                        className={`text-lg font-black tabular-nums block ${cashGiven < totalAmount
                             ? "text-rose-600 dark:text-rose-400"
                             : cashGiven === totalAmount
-                            ? "text-amber-700 dark:text-amber-400"
-                            : "text-emerald-700 dark:text-emerald-400"
-                        }`}
+                              ? "text-amber-700 dark:text-amber-400"
+                              : "text-emerald-700 dark:text-emerald-400"
+                          }`}
                       >
                         {cashGiven < totalAmount
                           ? `- ${formatRupiah(totalAmount - cashGiven)}`
                           : cashGiven === totalAmount
-                          ? "✓ UANG PAS"
-                          : formatRupiah(cashGiven - totalAmount)}
+                            ? "✓ UANG PAS"
+                            : formatRupiah(cashGiven - totalAmount)}
                       </span>
                     </div>
                   </div>

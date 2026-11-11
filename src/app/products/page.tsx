@@ -73,20 +73,67 @@ export default function ProductsPage() {
   const [submittingProd, setSubmittingProd] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
+  // Kompresi otomatis gambar di browser kasir/admin sebelum dikirim ke server (maksimal 500px, JPEG 80% ~30KB)
+  const compressImageFile = (file: File, maxWidth = 500, quality = 0.8): Promise<File> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target?.result as string;
+      };
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), {
+                  type: "image/jpeg",
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              } else {
+                resolve(file);
+              }
+            },
+            "image/jpeg",
+            quality
+          );
+        } else {
+          resolve(file);
+        }
+      };
+      img.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validasi ukuran < 5MB
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Ukuran gambar maksimal 5MB");
+    // Validasi ukuran awal < 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Ukuran gambar maksimal 10MB");
       return;
     }
 
     setUploadingImage(true);
     try {
+      // Kompresi otomatis ke ~30KB agar hemat bandwidth dan super cepat
+      const fileToUpload = await compressImageFile(file, 500, 0.8);
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", fileToUpload);
 
       const res = await fetch("/api/upload", {
         method: "POST",
